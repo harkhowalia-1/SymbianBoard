@@ -5,14 +5,13 @@ import UniformTypeIdentifiers
 // Home surface:
 //   - No device installed → ContentUnavailableView prompting a device import
 //     (Android `no_device_installed`). The CTA opens the import Form.
-//   - One or more devices → app grid for the current device. The navigation
-//     title doubles as a device menu (tap the title) holding the device
-//     switcher and, below a divider, "Install device" and "Manage devices";
-//     the ellipsis menu holds Settings, the system-apps toggle and help; the
-//     "+" menu installs a SIS package, and — depending on the booted device's
-//     kernel — either a classic N-Gage game card plus a memory-card mount
-//     (EKA1) or an N-Gage 2.0 package (EKA2).
-//     Pulling the grid down re-scans the registry.
+//   - One or more devices → the iPhone-style home screen (SpringboardView)
+//     for the current device. Its "+" button installs a SIS package, and —
+//     depending on the booted device's kernel — either a classic N-Gage game
+//     card plus a memory-card mount (EKA1) or an N-Gage 2.0 package (EKA2);
+//     its ellipsis menu holds the device switcher ("Install device", "Manage
+//     devices"), Settings and help. Tapping an icon zooms into the emulator
+//     screen for that app; launch links and Shortcuts land there too.
 
 // SIS files only — device ROM / RPKG go through ImportDeviceView's own picker.
 private let sisTypes: [UTType] = {
@@ -88,6 +87,9 @@ private struct FallbackUnavailableView<Actions: View>: View {
 
 struct ContentView: View {
     @State private var booted = false
+    // A build with a pre-installed device copies it into place on first
+    // launch; the splash covers the home screen until the device is up.
+    @State private var provisioning = BundledDevice.needsProvisioning
     // Devices, booted index, app list and the busy flag live in one store so
     // the device-manager page works off exactly the same state and operations.
     @StateObject private var store = DeviceStore()
@@ -106,10 +108,6 @@ struct ContentView: View {
     @State private var showingOnboarding = false
     @AppStorage("ios.onboarding.completed") private var onboardingCompleted = false
 
-    // Whether to show built-in ROM/system apps alongside user-installed ones.
-    // Defaults to false so the list shows only what the user installed.
-    @AppStorage("appListShowSystemApps") private var showSystemApps = false
-
     // Dev/testing convenience: choose a firmware, then launch straight into a
     // given app on startup, skipping the scroll-and-tap. Pass launch arguments
     // as iOS NSArgumentDomain pairs, e.g.
@@ -121,27 +119,18 @@ struct ContentView: View {
     @State private var autoLaunchHandled = false
     @State private var launchRomHandled = false
 
-    // App pending uninstall confirmation (set from the long-press context menu).
-    @State private var pendingUninstall: EKA2L1AppItem?
+    // Home screen: the icon → emulator zoom, the "Add to Home Screen" sheet,
+    // and launches requested from outside (launch links, Shortcuts, Siri).
+    @Namespace private var zoomNamespace
+    @ObservedObject private var launchRouter = SymbianLaunchRouter.shared
+    @AppStorage(HomeScreenStyle.storageKey) private var homeStyle = HomeScreenStyle.iphone.rawValue
+    @State private var shortcutApp: EKA2L1AppItem?
+    @State private var pendingLaunch: SymbianLaunchRequest?
 
     // Files handed over by the system ("Open in EKA2L1" from the Files app /
     // share sheet). On a cold launch onOpenURL can fire before the emulator
     // has booted, so URLs are queued here and drained once boot completes.
     @State private var pendingOpenURLs: [URL] = []
-
-    // Apps shown in the list, honouring the "show system apps" toggle.
-    private var visibleApps: [EKA2L1AppItem] {
-        showSystemApps ? store.apps : store.apps.filter { !$0.system }
-    }
-
-    // Hint shown when the visible list is empty. If system apps are hidden but
-    // some exist, point the user at the toggle instead of the install prompt.
-    private var emptyAppsHint: String {
-        if !showSystemApps && !store.apps.isEmpty {
-            return String(localized: "home.empty.hiddenSystemApps")
-        }
-        return String(localized: "home.empty.noApps")
-    }
 
     private var homeImporterTypes: [UTType] {
         switch homeImportTarget {
@@ -178,22 +167,29 @@ struct ContentView: View {
                 } else if store.devices.isEmpty {
                     emptyState
                 } else {
-                    appList
+                    springboard
                 }
             }
             // Status messages ride above the home content only; EmulatorView is
             // a pushed destination, so a toast never covers the guest screen.
             .toast(message: $banner)
-            .navigationTitle(store.currentDevice?.displayName ?? "EKA2L1")
+            .navigationTitle(store.currentDevice?.displayName ?? "SymbianBoard")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .toolbarTitleMenu { titleMenuContent }
+            .toolbar(showsSpringboard ? .hidden : .visible, for: .navigationBar)
             .navigationDestination(isPresented: $showingSettings) { SettingsView() }
             .navigationDestination(isPresented: $showingDeviceManager) {
                 DeviceManagerView(store: store) { showingImportDevice = true }
             }
             .navigationDestination(isPresented: $showingAutoLaunch) {
-                if let uid = autoLaunchUID { EmulatorView(uid: uid) }
+                if let uid = autoLaunchUID {
+                    EmulatorView(uid: uid)
+                        .zoomTransition(id: uid, in: zoomNamespace)
+                }
+            }
+            .sheet(item: $shortcutApp) { app in
+                AddToHomeScreenSheet(app: app, device: store.currentDevice)
             }
             .sheet(isPresented: $showingImportDevice) {
                 ImportDeviceView { installed in
@@ -223,15 +219,57 @@ struct ContentView: View {
                 handleHomeImport($0)
             }
         }
+        .overlay {
+            if provisioning {
+                StartupSplash()
+                    .transition(.opacity)
+            }
+        }
         .onAppear {
-            bootIfNeeded()
-            if !onboardingCompleted && !Self.isAutomationLaunch {
+            // With a device in the bundle there is nothing to explain or set
+            // up: it boots straight to the home screen.
+            if !onboardingCompleted && !Self.isAutomationLaunch && BundledDevice.bundleURL == nil {
                 showingOnboarding = true
+            }
+            guard provisioning else {
+                bootIfNeeded()
+                return
+            }
+            Task {
+                let failure = await Task.detached(priority: .userInitiated) { () -> String? in
+                    do {
+                        try BundledDevice.provision()
+                        return nil
+                    } catch {
+                        return error.localizedDescription
+                    }
+                }.value
+                if let failure {
+                    banner = "Couldn't set up the built-in device: \(failure)"
+                }
+                bootIfNeeded()
+                withAnimation(.easeOut(duration: 0.35)) { provisioning = false }
             }
         }
         .onOpenURL { url in
+            if let request = SymbianLaunchURL.parse(url) {
+                pendingLaunch = request
+                processPendingLaunch()
+                return
+            }
             pendingOpenURLs.append(url)
             processPendingOpenURLs()
+        }
+        .onReceive(launchRouter.$pending) { request in
+            guard let request else { return }
+            launchRouter.pending = nil
+            pendingLaunch = request
+            processPendingLaunch()
+        }
+        .onChange(of: store.apps) { apps in
+            // Keep the Shortcuts app's list of launchable apps current.
+            guard let device = store.currentDevice, store.currentIndex >= 0 else { return }
+            SymbianAppCatalog.update(device: device, apps: apps)
         }
         .onReceive(NotificationCenter.default.publisher(for: .eka2l1AppListInvalidated)) { _ in
             // A settings action (e.g. a system-language switch) changed how the
@@ -259,30 +297,95 @@ struct ContentView: View {
         }
     }
 
-    // Context-menu content for an app. Every app exposes a "copy UID" entry
-    // (the hex UID doubles as the label); only user-installed apps additionally
-    // offer uninstall — ROM/system apps cannot be removed.
-    @ViewBuilder
-    private func appContextMenu(for app: EKA2L1AppItem) -> some View {
-        Button {
-            UIPasteboard.general.string = uidHexString(app.uid)
-            banner = String(localized: "home.banner.copied \(uidHexString(app.uid))")
-        } label: {
-            Label(uidHexString(app.uid), systemImage: "doc.on.doc")
-        }
+    private var showsSpringboard: Bool {
+        bootError == nil && !store.devices.isEmpty
+    }
 
-        if !app.system {
-            Button(role: .destructive) {
-                pendingUninstall = app
-            } label: {
-                Label("home.uninstall.action", systemImage: "trash")
-            }
+    @ViewBuilder
+    private var springboard: some View {
+        if homeStyle == HomeScreenStyle.symbian.rawValue {
+            SymbianHomeView(apps: store.apps,
+                            deviceName: store.currentDevice?.displayName ?? "Symbian",
+                            busy: store.busy,
+                            zoomNamespace: zoomNamespace,
+                            onOpen: { open(uid: $0.uid) },
+                            onUninstall: uninstall,
+                            onAddToHomeScreen: { shortcutApp = $0 },
+                            installMenu: { installMenuItems },
+                            moreMenu: { moreMenuItems })
+                .id(store.currentIndex)
+                .transition(.opacity)
+        } else {
+            iphoneHome
         }
     }
 
-    // Canonical hex form used both on the menu label and on the clipboard.
-    private func uidHexString(_ uid: UInt32) -> String {
-        String(format: "0x%08X", uid)
+    private var iphoneHome: some View {
+        SpringboardView(apps: store.apps,
+                        deviceKey: store.currentDevice?.firmwareCode ?? "none",
+                        busy: store.busy,
+                        zoomNamespace: zoomNamespace,
+                        onOpen: { open(uid: $0.uid) },
+                        onUninstall: uninstall,
+                        onAddToHomeScreen: { shortcutApp = $0 },
+                        installMenu: { installMenuItems },
+                        moreMenu: { moreMenuItems })
+            .id(store.currentIndex)
+    }
+
+    // Push the emulator screen for `uid`, replacing one that is already up.
+    private func open(uid: UInt32) {
+        guard !store.busy else { return }
+        // Only one app runs at a time: one left running behind the home screen
+        // is closed when a different app opens (the same one just resumes).
+        let running = EKA2L1Bridge.shared.runningAppUID
+        if running != 0 && running != uid && !showingAutoLaunch {
+            EKA2L1Bridge.shared.closeRunningApp()
+        }
+        if showingAutoLaunch {
+            guard autoLaunchUID != uid else { return }
+            showingAutoLaunch = false
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                autoLaunchUID = uid
+                showingAutoLaunch = true
+            }
+            return
+        }
+        autoLaunchUID = uid
+        showingAutoLaunch = true
+    }
+
+    // A launch link / shortcut names an app and the device it lives on. Boot
+    // that device first when another one is running, then open the app.
+    private func processPendingLaunch() {
+        guard booted, let request = pendingLaunch, !store.busy else { return }
+        pendingLaunch = nil
+
+        if let code = request.deviceCode, store.currentDevice?.firmwareCode.caseInsensitiveCompare(code) != .orderedSame {
+            guard let target = store.device(withFirmwareCode: code) else {
+                banner = "The device \(code) for this shortcut isn't installed."
+                return
+            }
+            if showingAutoLaunch { showingAutoLaunch = false }
+            Task {
+                guard await store.boot(at: target.index) else {
+                    banner = String(localized: "home.error.bootRomFailed \(target.firmwareCode)")
+                    return
+                }
+                launchIfInstalled(request.uid)
+            }
+            return
+        }
+        launchIfInstalled(request.uid)
+    }
+
+    private func launchIfInstalled(_ uid: UInt32) {
+        guard store.apps.contains(where: { $0.uid == uid }) else {
+            banner = String(format: "App 0x%08X isn't installed on this device.", uid)
+            return
+        }
+        open(uid: uid)
     }
 
     @ViewBuilder
@@ -304,52 +407,6 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
             }
         }
-    }
-
-    private var appList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("home.appsCount \(visibleApps.count)")
-                    .font(.headline)
-
-                if visibleApps.isEmpty {
-                    Text(emptyAppsHint)
-                        .font(.caption).foregroundColor(.secondary)
-                } else {
-                    // Narrower columns so a phone-width screen fits four icons
-                    // per row (72pt icon + label, ~4pt slack).
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 12)],
-                              spacing: 16) {
-                        ForEach(visibleApps, id: \.uid) { app in
-                            NavigationLink(destination: EmulatorView(uid: app.uid)) {
-                                AppGridCell(uid: app.uid, name: app.name)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu { appContextMenu(for: app) }
-                            // Attached to the icon itself (rather than the
-                            // NavigationStack root) so the confirmation is
-                            // anchored to the pressed app's cell, matching
-                            // iOS 26's popover-style presentation instead of
-                            // detaching to a generic bottom sheet.
-                            .confirmationDialog(Text("home.uninstall.title \(app.name)"),
-                                                isPresented: Binding(
-                                                    get: { pendingUninstall?.uid == app.uid },
-                                                    set: { if !$0 { pendingUninstall = nil } }),
-                                                titleVisibility: .visible) {
-                                Button("home.uninstall.confirm", role: .destructive) { uninstall(app) }
-                                Button("common.cancel", role: .cancel) { pendingUninstall = nil }
-                            } message: {
-                                Text("home.uninstall.message")
-                            }
-                        }
-                    }
-                    .id(store.currentIndex)
-                }
-            }
-            .padding()
-        }
-        // Pull down on the grid to re-scan the device's app registry.
-        .refreshable { await store.refreshApps() }
     }
 
     // The navigation title's tap menu (SwiftUI toolbarTitleMenu): the device
@@ -412,96 +469,106 @@ struct ContentView: View {
         if !store.devices.isEmpty {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu("home.install", systemImage: "plus") {
-                    Button {
-                        homeImportTarget = .sis
-                        showingHomeImporter = true
-                    } label: {
-                        Label("home.install.sis", systemImage: "square.and.arrow.down")
-                    }
-                    
-                    // A second Text in a menu button's label renders as the item
-                    // subtitle (UIMenuElement.subtitle).
-                    if store.deviceIsEKA1 {
-                        Button {
-                            homeImportTarget = .ngage
-                            showingHomeImporter = true
-                        } label: {
-                            Text("home.installNGage")
-                            Text("home.installNGage.subtitle")
-                            Image(systemName: "gamecontroller")
-                        }
-
-                        Button {
-                            homeImportTarget = .card
-                            showingHomeImporter = true
-                        } label: {
-                            Text("home.mountCard")
-                            Text("home.mountCard.subtitle")
-                            Image(systemName: "sdcard")
-                        }
-
-                        if let card = store.mountedCardName {
-                            Button(role: .destructive) {
-                                if store.ejectCard() {
-                                    banner = String(localized: "home.card.ejected")
-                                }
-                            } label: {
-                                Text("home.card.eject")
-                                Text(card)
-                                Image(systemName: "eject")
-                            }
-                        }
-                    } else {
-                        Button {
-                            homeImportTarget = .ngage2
-                            showingHomeImporter = true
-                        } label: {
-                            Text("home.installNGage2")
-                            Text("home.installNGage2.subtitle")
-                            Image(systemName: "arrow.down.doc")
-                        }
-                    }
-
-                    Divider()
-
-                    Button {
-                        homeImportTarget = .font
-                        showingHomeImporter = true
-                    } label: {
-                        Text("home.installFonts")
-                        Text("home.installFonts.subtitle")
-                        Image(systemName: "textformat")
-                    }
+                    installMenuItems
                 }
                 .disabled(store.busy)
 
                 Menu("home.more", systemImage: "ellipsis.circle") {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Label("settings.title", systemImage: "gearshape")
-                    }
-                    
-                    Button {
-                        showSystemApps.toggle()
-                    } label: {
-                        if showSystemApps {
-                            Label("home.hideSystemApps", systemImage: "eye.slash")
-                        } else {
-                            Label("home.showSystemApps", systemImage: "eye")
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    Button {
-                        showingOnboarding = true
-                    } label: {
-                        Label("onboarding.title", systemImage: "questionmark.circle")
-                    }
+                    moreMenuItems
                 }
                 .disabled(store.busy)
             }
+        }
+    }
+
+    // "+" menu: SIS packages always; N-Gage cards / memory cards or N-Gage 2.0
+    // packages depending on the booted kernel; fonts.
+    @ViewBuilder
+    private var installMenuItems: some View {
+        Button {
+            homeImportTarget = .sis
+            showingHomeImporter = true
+        } label: {
+            Label("home.install.sis", systemImage: "square.and.arrow.down")
+        }
+
+        // A second Text in a menu button's label renders as the item
+        // subtitle (UIMenuElement.subtitle).
+        if store.deviceIsEKA1 {
+            Button {
+                homeImportTarget = .ngage
+                showingHomeImporter = true
+            } label: {
+                Text("home.installNGage")
+                Text("home.installNGage.subtitle")
+                Image(systemName: "gamecontroller")
+            }
+
+            Button {
+                homeImportTarget = .card
+                showingHomeImporter = true
+            } label: {
+                Text("home.mountCard")
+                Text("home.mountCard.subtitle")
+                Image(systemName: "sdcard")
+            }
+
+            if let card = store.mountedCardName {
+                Button(role: .destructive) {
+                    if store.ejectCard() {
+                        banner = String(localized: "home.card.ejected")
+                    }
+                } label: {
+                    Text("home.card.eject")
+                    Text(card)
+                    Image(systemName: "eject")
+                }
+            }
+        } else {
+            Button {
+                homeImportTarget = .ngage2
+                showingHomeImporter = true
+            } label: {
+                Text("home.installNGage2")
+                Text("home.installNGage2.subtitle")
+                Image(systemName: "arrow.down.doc")
+            }
+        }
+
+        Divider()
+
+        Button {
+            homeImportTarget = .font
+            showingHomeImporter = true
+        } label: {
+            Text("home.installFonts")
+            Text("home.installFonts.subtitle")
+            Image(systemName: "textformat")
+        }
+    }
+
+    // Overflow menu. The device switcher sits here too, since the home screen
+    // has no navigation title to hang it from.
+    @ViewBuilder
+    private var moreMenuItems: some View {
+        Menu {
+            titleMenuContent
+        } label: {
+            Label(store.currentDevice?.displayName ?? "Devices", systemImage: "iphone.gen1")
+        }
+
+        Button {
+            showingSettings = true
+        } label: {
+            Label("settings.title", systemImage: "gearshape")
+        }
+
+        Divider()
+
+        Button {
+            showingOnboarding = true
+        } label: {
+            Label("onboarding.title", systemImage: "questionmark.circle")
         }
     }
 
@@ -513,6 +580,7 @@ struct ContentView: View {
             reportFailedBootDevice()
             selectLaunchRomThenAutoLaunch()
             processPendingOpenURLs()
+            processPendingLaunch()
         } else {
             bootError = String(localized: "home.error.checkConsole")
         }
@@ -614,7 +682,6 @@ struct ContentView: View {
     }
 
     private func uninstall(_ app: EKA2L1AppItem) {
-        pendingUninstall = nil
         let ok = EKA2L1Bridge.shared.uninstallApp(uid: app.uid)
         store.reloadApps()
         banner = ok ? String(localized: "home.banner.uninstalled \(app.name)")
@@ -892,7 +959,30 @@ private final class InstallCancelFlag: @unchecked Sendable {
     }
 }
 
-// Device-install Form, in two flavours the user picks between.
+// One-shot answer handed from the main queue to an install thread that is
+// blocked waiting for the user to choose a firmware variant.
+private final class InstallVariantAnswer: @unchecked Sendable {
+    private let semaphore = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var value: Int?
+
+    func resolve(_ index: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard value == nil else { return }
+        value = index
+        semaphore.signal()
+    }
+
+    func wait() -> Int {
+        semaphore.wait()
+        lock.lock()
+        defer { lock.unlock() }
+        return value ?? -1
+    }
+}
+
+// Device-install Form, in three flavours the user picks between.
 //
 // Loose files: ROM is mandatory; RPKG is supplied only when the installer needs
 // it (S60v2+ dumps). A .7z instead: one file holding either of those same two,
@@ -909,17 +999,31 @@ struct ImportDeviceView: View {
     @Environment(\.dismiss) private var dismiss
 
     private struct PickedFile { let name: String; let url: URL }
-    private enum PickTarget { case rom, rpkg, archive }
+    private enum PickTarget { case rom, rpkg, archive, firmwareFolder }
 
     private enum SourceKind: Hashable {
         case looseFiles
         case archive
+        // A Nokia firmware folder: .vpl plus the .fpsx images it lists.
+        case firmware
+    }
+
+    // Variant names the firmware installer is waiting on the user to pick from.
+    private struct VariantRequest: Identifiable {
+        let id = UUID()
+        let names: [String]
+        let answer: InstallVariantAnswer
     }
 
     @State private var source: SourceKind = .looseFiles
     @State private var rom: PickedFile?
     @State private var rpkg: PickedFile?
     @State private var archive: PickedFile?
+    // Picked firmware folder and the .vpl files found inside it (relative paths).
+    @State private var firmwareFolder: PickedFile?
+    @State private var firmwareVPLs: [String] = []
+    @State private var selectedVPL = ""
+    @State private var variantRequest: VariantRequest?
     @State private var isolateDrives = false
     // A single fileImporter driven by which row was tapped. Stacking two
     // .fileImporter modifiers on one view makes SwiftUI drop one of them, so
@@ -944,6 +1048,7 @@ struct ImportDeviceView: View {
                     Picker("import.source", selection: $source) {
                         Text("import.source.looseFiles").tag(SourceKind.looseFiles)
                         Text("import.source.archive").tag(SourceKind.archive)
+                        Text("Nokia firmware (.vpl)").tag(SourceKind.firmware)
                     }
                     .pickerStyle(.menu)
                     .disabled(installing)
@@ -957,9 +1062,19 @@ struct ImportDeviceView: View {
                         Button { pickTarget = .rpkg; showingImporter = true } label: {
                             fileRow(title: String(localized: "import.rpkgFile"), value: rpkg?.name)
                         }
-                    } else {
+                    } else if source == .archive {
                         Button { pickTarget = .archive; showingImporter = true } label: {
                             fileRow(title: String(localized: "import.archiveFile"), value: archive?.name)
+                        }
+                    } else {
+                        Button { pickTarget = .firmwareFolder; showingImporter = true } label: {
+                            fileRow(title: "Firmware folder", value: firmwareFolder?.name)
+                        }
+                        if firmwareVPLs.count > 1 {
+                            Picker("Package list", selection: $selectedVPL) {
+                                ForEach(firmwareVPLs, id: \.self) { Text($0).tag($0) }
+                            }
+                            .disabled(installing)
                         }
                     }
                 } footer: {
@@ -967,8 +1082,10 @@ struct ImportDeviceView: View {
                     // the loose-files text keeps rendering as markdown.
                     if source == .looseFiles {
                         Text("import.recommendedDevices")
-                    } else {
+                    } else if source == .archive {
                         Text("import.archiveHint")
+                    } else {
+                        Text("Choose the unzipped firmware folder that holds the .vpl file and its .fpsx images (core, rofs2, rofs3, uda), for example a Nokia N8 RM-596 package.")
                     }
                 }
 
@@ -1004,7 +1121,7 @@ struct ImportDeviceView: View {
                         Button(action: install) {
                             Text("common.install")
                         }
-                        .disabled(source == .looseFiles ? (rom == nil) : (archive == nil))
+                        .disabled(installDisabled)
                     }
                 }
             }
@@ -1022,6 +1139,33 @@ struct ImportDeviceView: View {
                 pick(result, target: pickTarget)
             }
             .interactiveDismissDisabled(installing)
+            .confirmationDialog("Choose the firmware variant to install",
+                                isPresented: Binding(get: { variantRequest != nil },
+                                                     set: { if !$0, let request = variantRequest {
+                                                         variantRequest = nil
+                                                         request.answer.resolve(-1)
+                                                     } }),
+                                titleVisibility: .visible,
+                                presenting: variantRequest) { request in
+                ForEach(Array(request.names.enumerated()), id: \.offset) { index, name in
+                    Button(name) {
+                        variantRequest = nil
+                        request.answer.resolve(index)
+                    }
+                }
+                Button("common.cancel", role: .cancel) {
+                    variantRequest = nil
+                    request.answer.resolve(-1)
+                }
+            }
+        }
+    }
+
+    private var installDisabled: Bool {
+        switch source {
+        case .looseFiles: return rom == nil
+        case .archive: return archive == nil
+        case .firmware: return firmwareFolder == nil || selectedVPL.isEmpty
         }
     }
 
@@ -1041,6 +1185,7 @@ struct ImportDeviceView: View {
         case .rom: return romTypes
         case .rpkg: return rpkgTypes
         case .archive: return archiveTypes
+        case .firmwareFolder: return [.folder]
         }
     }
 
@@ -1049,11 +1194,16 @@ struct ImportDeviceView: View {
         case .rom: return "rom"
         case .rpkg: return "rpkg"
         case .archive: return "7z"
+        case .firmwareFolder: return ""
         }
     }
 
     private func pick(_ result: Result<[URL], Error>, target: PickTarget) {
         guard case .success(let urls) = result, let url = urls.first else { return }
+        if target == .firmwareFolder {
+            pickFirmwareFolder(url)
+            return
+        }
         let kind = expectedExtension(for: target)
         // The picker filters by content type, which a file from a provider that
         // types everything as generic data can slip past. The extension is the
@@ -1070,7 +1220,43 @@ struct ImportDeviceView: View {
         case .rom: rom = picked
         case .rpkg: rpkg = picked
         case .archive: archive = picked
+        case .firmwareFolder: break
         }
+    }
+
+    // Looks for package lists in the folder and one level below it, since
+    // firmware zips often keep a regional variant in a subfolder.
+    private func pickFirmwareFolder(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        var found: [String] = []
+        let fm = FileManager.default
+        if let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: nil,
+                                          options: [.skipsHiddenFiles]) {
+            for case let file as URL in enumerator {
+                if enumerator.level > 2 { enumerator.skipDescendants(); continue }
+                if file.pathExtension.lowercased() == "vpl" {
+                    // Relative path; built from components so a /private
+                    // prefix on one side doesn't throw the offset off.
+                    let parts = file.pathComponents.suffix(enumerator.level)
+                    found.append(parts.joined(separator: "/"))
+                }
+            }
+        }
+        found.sort()
+
+        guard !found.isEmpty else {
+            firmwareFolder = nil
+            firmwareVPLs = []
+            selectedVPL = ""
+            errorMessage = "No .vpl file was found in that folder. Unzip the firmware first, then choose the folder that holds the .vpl and .fpsx files."
+            return
+        }
+        errorMessage = nil
+        firmwareFolder = PickedFile(name: url.lastPathComponent, url: url)
+        firmwareVPLs = found
+        selectedVPL = found[0]
     }
 
     private func install() {
@@ -1100,6 +1286,25 @@ struct ImportDeviceView: View {
             run = { progress, cancel in
                 EKA2L1Bridge.installDevice(archivePath: archivePath, isolateDrives: isolate,
                                            progress: progress, cancelCheck: cancel)
+            }
+
+        case .firmware:
+            guard let firmwareFolder, !selectedVPL.isEmpty else { return }
+            let vplPath = firmwareFolder.url.appendingPathComponent(selectedVPL).path
+            urls = [firmwareFolder.url]
+            // The installer asks for a variant on its own thread; park it until
+            // the user answers the dialog on the main one.
+            let choose: @Sendable ([String]) -> Int = { names in
+                if names.count <= 1 { return names.isEmpty ? -1 : 0 }
+                let answer = InstallVariantAnswer()
+                DispatchQueue.main.async {
+                    variantRequest = VariantRequest(names: names, answer: answer)
+                }
+                return answer.wait()
+            }
+            run = { progress, cancel in
+                EKA2L1Bridge.installDevice(firmwarePath: vplPath, isolateDrives: isolate,
+                                           chooseVariant: choose, progress: progress, cancelCheck: cancel)
             }
         }
 

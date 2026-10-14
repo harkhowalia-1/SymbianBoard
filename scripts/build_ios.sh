@@ -16,6 +16,10 @@
 #                                        # log for EKA2L1_SMOKE: PASS / FAIL
 #   scripts/build_ios.sh archive         # device .xcarchive signed for App
 #                                        # Store / TestFlight distribution
+#                                        # (no JIT, no bundled firmware)
+#   scripts/build_ios.sh ipa             # sideload IPA with the dynarmic JIT
+#                                        # and the pre-installed device
+#                                        # (build/SymbianBoard-sideload.ipa)
 #   scripts/build_ios.sh clean           # remove build/ios-* directories
 #
 # Environment variables:
@@ -30,6 +34,11 @@
 #                                  binaries never carry JIT code. Runtime
 #                                  still requires the sideloaded process to
 #                                  have JIT permission.
+#   SYMBIANBOARD_BUNDLE_DEVICE     ON/OFF: ship firmware/BundledDevice (the
+#                                  pre-installed device for zero-setup first
+#                                  launch). Default ON, always OFF for
+#                                  `archive`: firmware must never go to the
+#                                  App Store.
 #   EKA2L1_SANITIZER               address | thread: build with ASan or TSan.
 #                                  Forces the dynarmic JIT off (sanitizers
 #                                  cannot see into JIT-emitted code), so the
@@ -63,7 +72,12 @@ configure_one() {
     local sdk="$3"
     local team="$4"
     local jit="${5:-OFF}"
+    local bundle_device="${6:-${SYMBIANBOARD_BUNDLE_DEVICE:-ON}}"
     local build_dir="build/ios-${label}"
+    local bundled_dir=""
+    if [ "${bundle_device}" = "ON" ]; then
+        bundled_dir="${ROOT_DIR}/firmware/BundledDevice"
+    fi
 
     echo "==> Configuring ${label} (PLATFORM=${platform}, sdk=${sdk})"
     # CMake 4.x dropped compatibility with cmake_minimum_required < 3.5, and
@@ -80,6 +94,7 @@ configure_one() {
         -DEKA2L1_IOS_ENABLE_FFMPEG=ON \
         -DEKA2L1_IOS_DYNARMIC="${jit}" \
         -DEKA2L1_SANITIZER="${EKA2L1_SANITIZER:-}" \
+        -DSYMBIANBOARD_BUNDLED_DEVICE_DIR="${bundled_dir}" \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_XCODE_ATTRIBUTE_SKIP_INSTALL=YES
     # SKIP_INSTALL=YES above keeps the dozens of static-lib targets out of the
@@ -154,8 +169,9 @@ archive_device() {
         exit 6
     fi
 
-    # The archive feeds App Store / TestFlight: never compile the JIT in.
-    configure_one device OS64 iphoneos "${DEVELOPMENT_TEAM}" OFF
+    # The archive feeds App Store / TestFlight: never compile the JIT in, and
+    # never ship the bundled firmware.
+    configure_one device OS64 iphoneos "${DEVELOPMENT_TEAM}" OFF OFF
 
     local archive_path="${EKA2L1_IOS_ARCHIVE_PATH:-build/ios-device/EKA2L1.xcarchive}"
 
@@ -244,6 +260,31 @@ for dev in d.get("result", {}).get("devices", []):
     xcrun devicectl device install app --device "${device}" "${device_app}"
 }
 
+# Unsigned device build with the JIT, packed as an IPA for sideloading
+# (AltStore / SideStore / Sideloadly re-sign it with the user's own identity).
+# JIT still has to be granted at run time by a JIT enabler (StikDebug,
+# SideStore) attaching to the app; without one it runs on the interpreter.
+build_ipa() {
+    DEVELOPMENT_TEAM="" EKA2L1_IOS_DYNARMIC="${EKA2L1_IOS_DYNARMIC:-ON}" \
+        build_one device OS64 iphoneos
+
+    local device_app="build/ios-device/src/emu/ios/${CONFIGURATION}-iphoneos/EKA2L1.app"
+    if [ ! -d "${device_app}" ]; then
+        echo "ipa: built bundle not found at ${device_app}" >&2
+        exit 7
+    fi
+
+    local staging
+    staging="$(mktemp -d -t symbianboard-ipa)"
+    mkdir -p "${staging}/Payload"
+    cp -Rc "${device_app}" "${staging}/Payload/SymbianBoard.app"
+    local ipa="${ROOT_DIR}/build/SymbianBoard-sideload.ipa"
+    rm -f "${ipa}"
+    (cd "${staging}" && zip -qry "${ipa}" Payload)
+    rm -rf "${staging}"
+    echo "==> Sideload IPA: ${ipa} ($(du -h "${ipa}" | cut -f1))"
+}
+
 smoke_test() {
     local sim_app="build/ios-simulator/src/emu/ios/${CONFIGURATION}-iphonesimulator/EKA2L1.app"
     local bundle_id="${EKA2L1_IOS_BUNDLE_ID:-com.eka2l1.emulator}"
@@ -316,6 +357,9 @@ case "${1:-all}" in
         ;;
     archive)
         archive_device
+        ;;
+    ipa)
+        build_ipa
         ;;
     simulator)
         build_one simulator SIMULATORARM64 iphonesimulator

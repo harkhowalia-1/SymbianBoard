@@ -140,6 +140,18 @@ final class EKA2L1Bridge {
                                               progress: progress, cancelCheck: cancelCheck)
     }
 
+    // Same, from a Nokia firmware .vpl next to its .fpsx images. `chooseVariant`
+    // runs on the install thread and returns the variant index (-1 cancels) —
+    // see installDeviceWithFirmwarePath:isolateDrives:chooseVariant:progress:cancelCheck:.
+    nonisolated static func installDevice(firmwarePath: String, isolateDrives: Bool,
+                                          chooseVariant: (@Sendable ([String]) -> Int)? = nil,
+                                          progress: (@Sendable (Double) -> Void)? = nil,
+                                          cancelCheck: (@Sendable () -> Bool)? = nil) -> EKA2L1InstallResult {
+        EKA2L1Emulator.shared().installDevice(firmwarePath: firmwarePath, isolateDrives: isolateDrives,
+                                              chooseVariant: chooseVariant, progress: progress,
+                                              cancelCheck: cancelCheck)
+    }
+
     nonisolated static func bootDevice(at index: Int) -> Bool {
         EKA2L1Emulator.shared().bootDevice(at: UInt(index))
     }
@@ -203,6 +215,12 @@ final class EKA2L1Bridge {
     // Kill the running app in lockstep with the frontend closing its screen.
     func closeRunningApp() {
         emulator.closeRunningApp()
+    }
+
+    // App left running behind the home screen (0 when none); launching it
+    // again resumes it instead of relaunching.
+    var runningAppUID: UInt32 {
+        emulator.runningAppUID
     }
 
     // SIS extraction can take a while for large packages, so — like the other

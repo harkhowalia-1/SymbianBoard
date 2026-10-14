@@ -20,6 +20,7 @@
 #pragma once
 
 #include <common/configure.h>
+#include <common/platform.h>
 #include <config/options.inl>
 
 #include <array>
@@ -56,7 +57,12 @@ namespace eka2l1::config {
     static constexpr const char *KEYBIND_TYPE_MOUSE = "mouse";
     static constexpr const char *KEYBIND_DEFAULT_FILE = "keybind.yml";
 
-#if BUILD_FOR_USER
+    // Release iOS builds are what people run, so they only log warnings: the
+    // trace preset writes a line per file access and kernel call, which costs
+    // a phone real time.
+#if EKA2L1_PLATFORM(IOS) && defined(NDEBUG)
+    static constexpr const char *DEFAULT_LOG_FILTERING = "*:warn Emulated.Stdout:off Service.Track:error";
+#elif BUILD_FOR_USER
     static constexpr const char *DEFAULT_LOG_FILTERING = eka2l1::LOG_FILTER_NORMAL_USE_PRESET;
 #else
     static constexpr const char *DEFAULT_LOG_FILTERING = eka2l1::LOG_FILTER_DEBUG_PRESET;
@@ -119,10 +125,10 @@ namespace eka2l1::config {
         // cpu_backend because that field defaults to (and may have persisted)
         // "dynarmic" from the desktop default, which must not silently enable
         // the JIT on iOS.
-        bool ios_use_jit{ false };
+        bool ios_use_jit{ true };
         // iOS emulator thread QoS: "high-performance" (user-initiated) or
         // "balanced" (default).
-        std::string ios_performance_mode{ "balanced" };
+        std::string ios_performance_mode{ "high-performance" };
         int device{ 0 };
         int language{ -1 };
         int emulator_language{ -1 };

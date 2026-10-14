@@ -395,15 +395,25 @@ struct KeypadMenuActions {
 struct SystemMenuKey: View {
     let actions: KeypadMenuActions
     var size: CGSize = CGSize(width: 58, height: 38)
+    // The control bar shows it as a plain glyph rather than a key cap.
+    var symbol = "line.3.horizontal"
+    var bare = false
 
     var body: some View {
         Menu {
             menuContent
         } label: {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 16, weight: .semibold))
-                .frame(width: size.width, height: size.height)
-                .keyCap(kind: .soft, pressed: false)
+            if bare {
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            } else {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: size.width, height: size.height)
+                    .keyCap(kind: .soft, pressed: false)
+            }
         }
         .accessibilityLabel("emulator.menu")
     }
@@ -493,10 +503,13 @@ struct VirtualKeypad: View {
     let configuration: KeypadLayoutConfiguration
     let fullScreen: Bool
     let actions: KeypadMenuActions
+    // Set when the control bar under the app already carries the menu.
+    var hidesMenuKey = false
 
     var body: some View {
         ZStack {
-            ForEach(configuration.visibleElements(fullScreen: fullScreen), id: \.self) { element in
+            ForEach(configuration.visibleElements(fullScreen: fullScreen).filter { !(hidesMenuKey && $0 == .menu) },
+                    id: \.self) { element in
                 runtimeElement(element) {
                     switch element {
                     case .dpad:

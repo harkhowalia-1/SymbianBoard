@@ -16,10 +16,14 @@ struct EmulatorView: View {
     @AppStorage(KeypadDefaults.opacityKey) private var keypadOpacity = KeypadDefaults.opacity
     @AppStorage(DisplayLayoutDefaults.portraitKey) private var portraitDisplayLayout = ""
     @AppStorage(DisplayLayoutDefaults.landscapeKey) private var landscapeDisplayLayout = ""
-    @AppStorage("ios.showFPSOverlay") private var showFPSOverlay = true
+    @AppStorage("ios.showFPSOverlay") private var showFPSOverlay = false
+    @AppStorage(ControlBarStyle.storageKey) private var controlStyleRaw = ControlBarStyle.symbian.rawValue
     @AppStorage("ios.fpsOverlayX") private var fpsOverlayX = -1.0
     @AppStorage("ios.fpsOverlayY") private var fpsOverlayY = -1.0
     @Environment(\.dismiss) private var dismiss
+    // Set when the user goes to the home screen (Menu / home key or home bar):
+    // the app is then left running so reopening it is instant.
+    @State private var leavingToHome = false
     @State private var guestFatalDetails: String?
     @State private var sessionMessage: String?
     @State private var fpsDragStart: CGPoint?
@@ -210,6 +214,18 @@ struct EmulatorView: View {
                     configuration: keypadConfiguration
                 )
             }
+            // Phone controls (N8 keys, Android navigation or the iPhone home
+            // bar) along the bottom edge. Symbian^3's own back key only
+            // backgrounds most apps, so these are how you get home.
+            .overlay(alignment: .bottom) {
+                if !isEditingLayout {
+                    AppControlBar(style: controlStyle, actions: menuActions) {
+                        leavingToHome = true
+                        dismiss()
+                    }
+                        .ignoresSafeArea(edges: .bottom)
+                }
+            }
             .onAppear {
                 screenSize = proxy.size
                 screenSafeAreaInsets = proxy.safeAreaInsets
@@ -255,8 +271,13 @@ struct EmulatorView: View {
             // onDisappear fires on navigation removal but not on app
             // backgrounding (that path pauses via scenePhase), so this cleanly
             // means "screen closed". No-op if the app already exited.
+            // Going home leaves the app running behind the home screen, like
+            // a phone does; Exit (or the app quitting) closes it.
             EKA2L1Bridge.shared.setAppExitHandler(nil)
-            EKA2L1Bridge.shared.closeRunningApp()
+            if !leavingToHome {
+                EKA2L1Bridge.shared.closeRunningApp()
+            }
+            leavingToHome = false
             UIApplication.shared.isIdleTimerDisabled = wasIdleTimerDisabled
             isEditingKeypad = false
             isEditingDisplay = false
@@ -348,7 +369,8 @@ struct EmulatorView: View {
                 controlSize: controlSize,
                 configuration: configuration,
                 fullScreen: isFullscreen,
-                actions: menuActions
+                actions: menuActions,
+                hidesMenuKey: controlStyle != .homeBar
             )
             .opacity(keypadOpacity)
         }
@@ -711,4 +733,9 @@ private struct EmulatorControllerView: UIViewControllerRepresentable {
         uiViewController.keypadHitRegions = keypadHitRegions
         host.viewController = uiViewController
     }
+}
+
+
+private extension EmulatorView {
+    var controlStyle: ControlBarStyle { ControlBarStyle(rawValue: controlStyleRaw) ?? .symbian }
 }

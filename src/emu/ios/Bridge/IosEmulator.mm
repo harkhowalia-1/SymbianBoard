@@ -499,6 +499,11 @@ namespace eka2l1::ios {
         // cleared once the process exits (so closeRunningApp no-ops afterwards).
         eka2l1::kernel::uid running_thread_id = 0;
 
+        // App UID of that process, so the frontend can leave an app running
+        // while it shows the home screen and come back to it without a
+        // relaunch (which would cost a full system rebuild). 0 when none.
+        std::atomic<std::uint32_t> running_uid{ 0 };
+
         // Set once an app has exited / been killed in this booted session. The
         // window + view servers don't fully reset between app instances (the
         // guest logs "Can't remove active view!" on exit), so relaunching into
@@ -1527,6 +1532,43 @@ namespace eka2l1::ios {
     } progress:progress cancelCheck:cancelCheck];
 }
 
+- (EKA2L1InstallResult)installDeviceWithFirmwarePath:(NSString *)vplPath
+                                       isolateDrives:(BOOL)isolateDrives
+                                       chooseVariant:(NSInteger (^)(NSArray<NSString *> *))chooseVariant
+                                            progress:(void (^)(double))progress
+                                         cancelCheck:(BOOL (^)(void))cancelCheck {
+    if (![NSFileManager.defaultManager fileExistsAtPath:vplPath]) {
+        return EKA2L1InstallResultNotExist;
+    }
+    if (!_state) {
+        return EKA2L1InstallResultGeneralFailure;
+    }
+
+    const std::string vpl_std = vplPath.UTF8String;
+    // install_firmware lays drives/z and drives/c out under the storage root
+    // itself, rather than taking the drive Z folder like the other installers.
+    const std::string storage = _state->conf.storage;
+
+    eka2l1::device_firmware_choose_variant_callback choose_cb =
+        [chooseVariant](const std::vector<std::string> &variants) -> int {
+            if (!chooseVariant) {
+                return 0;
+            }
+            NSMutableArray<NSString *> *names = [NSMutableArray arrayWithCapacity:variants.size()];
+            for (const std::string &variant : variants) {
+                [names addObject:[NSString stringWithUTF8String:variant.c_str()] ?: @""];
+            }
+            return static_cast<int>(chooseVariant(names));
+        };
+
+    return [self runDeviceInstall:^(eka2l1::device_manager *dvc, const std::string &rom_resident_path,
+                                     const std::string &root_z_path, progress_changed_callback progress_cb,
+                                     cancel_requested_callback cancel_cb) {
+        return eka2l1::install_firmware(dvc, vpl_std, storage, rom_resident_path, isolateDrives == YES,
+            choose_cb, progress_cb, cancel_cb);
+    } progress:progress cancelCheck:cancelCheck];
+}
+
 - (BOOL)bootDeviceAtIndex:(NSUInteger)index {
     return [self bootDeviceAtIndex:index trackAttempt:YES];
 }
@@ -1540,6 +1582,9 @@ namespace eka2l1::ios {
     if (!_state) {
         return NO;
     }
+    // A reboot ends whatever app was running in the old session.
+    _state->running_thread_id = 0;
+    _state->running_uid = 0;
     const std::string storage = _state->conf.storage;
 
     // Rebuild the system so device_manager reloads devices.yml fresh and the
@@ -1902,6 +1947,27 @@ namespace eka2l1::ios {
         LOG_ERROR(eka2l1::DRIVER_GRAPHICS, "iOS graphics driver was not ready before app launch");
         return NO;
     }
+    // The app was left running behind the home screen: bring it back as it
+    // was instead of relaunching it, which would rebuild the whole system.
+    if (_state->running_thread_id != 0 && _state->running_uid == uid) {
+        eka2l1::ios::bind_graphics_driver(_state.get());
+        auto *kern = _state->symsys->get_kernel_system();
+        if (kern) {
+            kern->lock();
+        }
+        // Present the app's current picture on the new layer right away; it
+        // keeps drawing into the same screen as before.
+        if (_state->winserv) {
+            for (auto *scr = _state->winserv->get_screens(); scr; scr = scr->next) {
+                scr->fire_screen_redraw_callbacks(false);
+            }
+        }
+        if (kern) {
+            kern->stop_cores_idling();
+            kern->unlock();
+        }
+        return YES;
+    }
 
     // A prior app left the booted session dirty (the window/view servers don't
     // reset cleanly between app instances). Rebuild the system for a clean
@@ -1952,6 +2018,7 @@ namespace eka2l1::ios {
         });
     if (launched) {
         _state->running_thread_id = launched_thread_id;
+        _state->running_uid = uid;
         kern->stop_cores_idling();
     }
     kern->unlock();
@@ -1989,6 +2056,7 @@ namespace eka2l1::ios {
     // the screen-teardown path doesn't try to kill a stale (or recycled) id,
     // and flag the session for a rebuild before the next launch.
     _state->running_thread_id = 0;
+    _state->running_uid = 0;
     _state->needs_reboot_before_launch = true;
     if (self.appExitHandler) {
         self.appExitHandler(fatalDetails);
@@ -2018,6 +2086,7 @@ namespace eka2l1::ios {
         return;
     }
     _state->running_thread_id = 0;
+    _state->running_uid = 0;
     // The killed app leaves the session dirty; rebuild before the next launch.
     _state->needs_reboot_before_launch = true;
 
@@ -2595,6 +2664,10 @@ namespace eka2l1::ios {
     }
     // Cached at boot time: see emulator::device_is_touch_screen.
     return _state->device_is_touch_screen.load(std::memory_order_relaxed) ? YES : NO;
+}
+
+- (uint32_t)runningAppUID {
+    return _state ? _state->running_uid.load() : 0;
 }
 
 - (BOOL)isGameCardMounted {

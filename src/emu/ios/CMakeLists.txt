@@ -18,7 +18,7 @@
 enable_language(Swift)
 
 set(EKA2L1_IOS_APP EKA2L1)
-set(EKA2L1_IOS_BUNDLE_ID "com.eka2l1.emulator" CACHE STRING "iOS bundle identifier")
+set(EKA2L1_IOS_BUNDLE_ID "com.harkhowalia.symbianboard" CACHE STRING "iOS bundle identifier")
 
 # Apple Development team for real-device installs. Leave empty for the
 # unsigned build (simulator / CI). Set it to a
@@ -37,6 +37,11 @@ set(EKA2L1_IOS_SOURCES
     "${EKA2L1_IOS_APP_DIR}/EKA2L1App.swift"
     "${EKA2L1_IOS_APP_DIR}/ExternalDisplay.swift"
     "${EKA2L1_IOS_APP_DIR}/ContentView.swift"
+    "${EKA2L1_IOS_APP_DIR}/Springboard.swift"
+    "${EKA2L1_IOS_APP_DIR}/HomeShortcuts.swift"
+    "${EKA2L1_IOS_APP_DIR}/FirstRunSetup.swift"
+    "${EKA2L1_IOS_APP_DIR}/ControlBar.swift"
+    "${EKA2L1_IOS_APP_DIR}/SymbianHome.swift"
     "${EKA2L1_IOS_APP_DIR}/OnboardingView.swift"
     "${EKA2L1_IOS_APP_DIR}/DeviceManagerView.swift"
     "${EKA2L1_IOS_APP_DIR}/DeviceStore.swift"
@@ -214,6 +219,29 @@ else()
         XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES"
         XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES")
     message(STATUS "EKA2L1 iOS: signed build for team ${EKA2L1_IOS_DEVELOPMENT_TEAM}")
+endif()
+
+# ---------------------------------------------------------------------------
+# Pre-installed device (SymbianBoard).
+#
+# When this folder exists, the app ships with a device already unpacked —
+# drives/z/<code>, drives/c, roms/<code> and devices.yml, laid out like the
+# emulator's own data tree — and copies it into place on first launch, so there
+# is nothing to install or set up. The folder is git-ignored: firmware is
+# Nokia's, so only bundle a dump you are entitled to, and only in builds you
+# don't publish. Pass -DSYMBIANBOARD_BUNDLED_DEVICE_DIR= (empty) to leave it out.
+set(SYMBIANBOARD_BUNDLED_DEVICE_DIR "${CMAKE_SOURCE_DIR}/firmware/BundledDevice"
+    CACHE PATH "Pre-installed device tree to bundle (empty = none)")
+if (SYMBIANBOARD_BUNDLED_DEVICE_DIR AND EXISTS "${SYMBIANBOARD_BUNDLED_DEVICE_DIR}/devices.yml")
+    # rsync keeps rebuilds cheap: only changed files are copied again. It runs
+    # before Xcode's code-signing step, so the tree is sealed with the app.
+    add_custom_command(TARGET ${EKA2L1_IOS_APP} POST_BUILD
+        COMMAND rsync -a --delete "${SYMBIANBOARD_BUNDLED_DEVICE_DIR}/"
+                "$<TARGET_BUNDLE_CONTENT_DIR:${EKA2L1_IOS_APP}>/BundledDevice/"
+        COMMENT "Bundling pre-installed device from ${SYMBIANBOARD_BUNDLED_DEVICE_DIR}")
+    message(STATUS "SymbianBoard: bundling pre-installed device from ${SYMBIANBOARD_BUNDLED_DEVICE_DIR}")
+else()
+    message(STATUS "SymbianBoard: no pre-installed device bundled")
 endif()
 
 message(STATUS "EKA2L1 iOS frontend skeleton: bundle ${EKA2L1_IOS_BUNDLE_ID}, deployment ${EKA2L1_IOS_DEPLOYMENT_TARGET}")

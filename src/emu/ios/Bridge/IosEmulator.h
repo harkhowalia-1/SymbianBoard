@@ -146,6 +146,21 @@ typedef NS_ENUM(NSInteger, EKA2L1InstallResult) {
                                         cancelCheck:(nullable BOOL (^)(void))cancelCheck
     NS_SWIFT_NAME(installDevice(archivePath:isolateDrives:progress:cancelCheck:));
 
+// Install a device straight from a Nokia firmware package: a .vpl file sitting
+// next to the .fpsx images it lists (core, rofs2, rofs3, uda). A firmware may
+// ship several language variants; `chooseVariant` is called on the install
+// thread with their names and returns the index to install (-1 cancels).
+// When nil, the first variant is taken.
+//
+// Same contract as installDeviceWithRomPath: above — progress/cancel callbacks,
+// synchronous, does not boot the device.
+- (EKA2L1InstallResult)installDeviceWithFirmwarePath:(NSString *)vplPath
+                                       isolateDrives:(BOOL)isolateDrives
+                                       chooseVariant:(nullable NSInteger (^)(NSArray<NSString *> *variants))chooseVariant
+                                            progress:(nullable void (^)(double fraction))progress
+                                         cancelCheck:(nullable BOOL (^)(void))cancelCheck
+    NS_SWIFT_NAME(installDevice(firmwarePath:isolateDrives:chooseVariant:progress:cancelCheck:));
+
 // Boot a previously-installed device by index: (re)builds the system, sets
 // the device, mounts drives, binds the graphics driver. Returns YES on
 // success.
@@ -236,6 +251,10 @@ typedef NS_ENUM(NSInteger, EKA2L1InstallResult) {
 
 // Nonblocking snapshot for the main thread; read after boot completes.
 - (BOOL)isGameCardMounted;
+
+// UID of the app launched by the last launchAppWithUID: while its process is
+// still alive, else 0. Launching that same UID again resumes it in place.
+@property(nonatomic, readonly) uint32_t runningAppUID;
 
 // Uninstall a user-installed package by its app UID. Deletes the package's
 // files and registration; ROM/system apps cannot be uninstalled. Returns NO if

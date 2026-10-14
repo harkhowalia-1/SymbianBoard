@@ -10,7 +10,7 @@ struct BTNetFriend: Identifiable, Hashable {
 struct SettingsView: View {
     @ObservedObject private var peripheralManager = PeripheralManager.shared
     @State private var mappingTarget: PeripheralManager.Peripheral?
-    @AppStorage("ios.showFPSOverlay") private var showFPSOverlay = true
+    @AppStorage("ios.showFPSOverlay") private var showFPSOverlay = false
 
     @State private var integerScaling = true
     @State private var nearestNeighborFiltering = true
