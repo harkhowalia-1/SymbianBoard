@@ -128,3 +128,9 @@ SymbianBoard is a fork of [EKA2L1](https://github.com/EKA2L1/EKA2L1) by the EKA2
 the emulator itself is their work. Like EKA2L1, SymbianBoard is licensed under the
 [GNU GPL v3](LICENSE). Symbian and Nokia firmware, apps and trademarks belong to their
 owners; SymbianBoard ships none of them.
+
+## Support
+
+If you enjoy this project, you can support me here:
+
+<a href="https://buymeacoffee.com/harkhowalia"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-orange.png" alt="Buy me a coffee" height="50"></a>
