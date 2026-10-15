@@ -40,8 +40,9 @@ straight from their icons, keep running when you go home, and come back instantl
   Symbian apps save go to your iPhone Photos.
 - **Fast** — apps stay running behind the home screen; the dynarmic JIT is built into the
   sideload version.
-- **Install firmware from Nokia packages** — point it at an unzipped firmware folder
-  (`.vpl` + `.fpsx` files, e.g. Nokia N8 RM-596) and it installs the device.
+- **Install firmware straight from a download** — pick the firmware `.zip` (or `.7z`) as you
+  downloaded it, or an unzipped folder with the `.vpl` + `.fpsx` files (e.g. Nokia N8 RM-596),
+  and it installs the device. ROM + RPKG dumps work too.
 
 ## Download
 
@@ -56,8 +57,9 @@ straight from their icons, keep running when you go home, and come back instantl
 2. For full speed, enable JIT for SymbianBoard with SideStore or
    [StikDebug](https://github.com/StephenDev0/StikDebug). Without it the app still works,
    on the slower interpreter.
-3. On first launch, install a device: **Install Device → Nokia firmware (.vpl)**, then choose
-   the unzipped firmware folder. Use firmware from a phone you own.
+3. On first launch, install a device: **Install Device → Zip or 7z archive**, then pick the
+   firmware zip (or choose **Nokia firmware (.vpl)** for an unzipped folder). Use firmware
+   from a phone you own.
 
 > **Firmware is not included.** Nokia's firmware is copyrighted, so public builds ship
 > without it. Personal builds can bundle a device you own for a zero-setup first launch
