@@ -33,6 +33,15 @@
       },
       "versions": [
         {
+          "version": "0.2.0",
+          "buildVersion": "2",
+          "date": "2026-10-15",
+          "localizedDescription": "SymbianBoard now runs on the Mac, and installs firmware straight from a downloaded zip.\n\n**New**\n- **Mac app** (Apple silicon, macOS 14+): `SymbianBoard-mac.dmg`. The same home screen and apps in a phone-shaped window, with the dynarmic JIT always on \u2014 no enabler needed.\n- **Install firmware from a zip:** Install Device \u2192 Zip or 7z archive, then pick the firmware zip as you downloaded it (for example a Nokia N8 RM-596). Unzipped .vpl folders still work.\n- **Music player works:** songs copied from your iPhone show up in the N8's Music player.\n- New Symbian^3-style app icon.\n- The N8 screen now stays above the Menu key strip in wide windows (iPad, Mac), so its softkeys are never covered.\n\n**Install**\n- iPhone: sideload `SymbianBoard.ipa` with AltStore, SideStore or Sideloadly, or add the source https://harkhowalia-1.github.io/SymbianBoard/altstore.json. Enable JIT with SideStore or StikDebug for full speed.\n- Mac: open the DMG and drag SymbianBoard to Applications. It isn't notarized yet: on first launch open System Settings \u2192 Privacy & Security and click Open Anyway.\n\n**Firmware is not included** \u2014 install your own phone's firmware on first launch.\n\n**Known issues:** opening a single photo in Gallery crashes it; Clock quits on launch; not yet tested on real iPhone hardware; Intel Macs aren't supported.",
+          "downloadURL": "https://github.com/harkhowalia-1/SymbianBoard/releases/download/v0.2.0/SymbianBoard.ipa",
+          "size": 166077887,
+          "minOSVersion": "16.0"
+        },
+        {
           "version": "0.1.0",
           "buildVersion": "1",
           "date": "2026-10-14",
