@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.harkhowalia.symbianboard",
       "developerName": "harkhowalia-1",
       "subtitle": "Symbian apps on your iPhone.",
-      "localizedDescription": "Run Symbian apps — the phone's own Calculator, Gallery and Notes, games, and anything you install from .sis / .sisx — inside an emulated Nokia, on an iPhone-style home screen. Includes the dynarmic JIT (enable JIT in SideStore or StikDebug for full speed). Firmware is not included: install your own phone's firmware (for example a Nokia N8 .vpl package) on first launch. Built on EKA2L1, licensed under the GNU GPL v3.",
+      "localizedDescription": "Run Symbian apps \u2014 the phone's own Calculator, Gallery and Notes, games, and anything you install from .sis / .sisx \u2014 inside an emulated Nokia, on an iPhone-style home screen. Includes the dynarmic JIT (enable JIT in SideStore or StikDebug for full speed). Firmware is not included: install your own phone's firmware (for example a Nokia N8 .vpl package) on first launch. Built on EKA2L1, licensed under the GNU GPL v3.",
       "iconURL": "https://harkhowalia-1.github.io/SymbianBoard/assets/icon.png",
       "tintColor": "#0E6F86",
       "category": "utilities",
@@ -31,7 +31,17 @@
           "NSMicrophoneUsageDescription": "Symbian apps can record audio."
         }
       },
-      "versions": []
+      "versions": [
+        {
+          "version": "0.1.0",
+          "buildVersion": "1",
+          "date": "2026-10-14",
+          "localizedDescription": "First public build of SymbianBoard: Symbian apps on your iPhone, on an iOS-style home screen. Built on EKA2L1.\n\n**What's in it**\n- iPhone-style home screen with the apps' real Symbian icons, dock, folders, long-press actions and jiggle mode \u2014 or a Symbian^3-style Menu home screen\n- The N8's silver Menu key under every running app; call keys in the calling apps\n- Install .sis / .sisx apps with +; install Nokia firmware from a .vpl folder\n- Apps keep running when you go home and resume instantly\n- Your newest iPhone photos appear in the N8 Gallery; on-device songs are copied for the Music player\n- Shortcuts: symbianboard:// links, the \"Open Symbian App\" Shortcuts action, Home Screen icons\n- dynarmic JIT included \u2014 enable JIT with SideStore or StikDebug for full speed\n\n**Install:** sideload SymbianBoard.ipa with AltStore, SideStore or Sideloadly, or add the source https://harkhowalia-1.github.io/SymbianBoard/altstore.json\n\n**Firmware is not included** \u2014 install your own phone's firmware on first launch (Install Device \u2192 Nokia firmware (.vpl)).\n\n**Known issues:** opening a single photo in Gallery crashes it; the Music player and Clock quit on launch; not yet tested on real iPhone hardware.",
+          "downloadURL": "https://github.com/harkhowalia-1/SymbianBoard/releases/download/v0.1.0/SymbianBoard.ipa",
+          "size": 14177180,
+          "minOSVersion": "16.0"
+        }
+      ]
     }
   ],
   "news": []
