@@ -1,0 +1,38 @@
+{
+  "name": "SymbianBoard",
+  "identifier": "io.github.harkhowalia-1.symbianboard",
+  "subtitle": "Symbian apps on your iPhone.",
+  "description": "SymbianBoard runs real Symbian apps in an emulated Nokia phone, on a home screen that feels like iOS. Built on the EKA2L1 emulator.",
+  "iconURL": "https://harkhowalia-1.github.io/SymbianBoard/assets/icon.png",
+  "website": "https://harkhowalia-1.github.io/SymbianBoard/",
+  "tintColor": "#0E6F86",
+  "apps": [
+    {
+      "name": "SymbianBoard",
+      "bundleIdentifier": "com.harkhowalia.symbianboard",
+      "developerName": "harkhowalia-1",
+      "subtitle": "Symbian apps on your iPhone.",
+      "localizedDescription": "Run Symbian apps — the phone's own Calculator, Gallery and Notes, games, and anything you install from .sis / .sisx — inside an emulated Nokia, on an iPhone-style home screen. Includes the dynarmic JIT (enable JIT in SideStore or StikDebug for full speed). Firmware is not included: install your own phone's firmware (for example a Nokia N8 .vpl package) on first launch. Built on EKA2L1, licensed under the GNU GPL v3.",
+      "iconURL": "https://harkhowalia-1.github.io/SymbianBoard/assets/icon.png",
+      "tintColor": "#0E6F86",
+      "category": "utilities",
+      "screenshots": [
+        "https://harkhowalia-1.github.io/SymbianBoard/assets/home-iphone.jpg",
+        "https://harkhowalia-1.github.io/SymbianBoard/assets/app-calculator.jpg",
+        "https://harkhowalia-1.github.io/SymbianBoard/assets/gallery-iphone-photos.jpg",
+        "https://harkhowalia-1.github.io/SymbianBoard/assets/home-symbian.jpg"
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSPhotoLibraryUsageDescription": "Your photos appear in the Symbian Gallery, and pictures taken in Symbian apps are saved to your Photos.",
+          "NSAppleMusicUsageDescription": "Songs stored on this iPhone are copied to the Symbian Music player.",
+          "NSCameraUsageDescription": "Symbian camera apps can use the iPhone camera.",
+          "NSMicrophoneUsageDescription": "Symbian apps can record audio."
+        }
+      },
+      "versions": []
+    }
+  ],
+  "news": []
+}

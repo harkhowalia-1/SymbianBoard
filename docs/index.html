@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SymbianBoard</title>
+<meta name="description" content="Run Symbian apps on your iPhone, on a home screen that feels like iOS. Built on the EKA2L1 emulator.">
+<link rel="icon" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --text: #15171a;
+    --muted: #5b6270;
+    --line: #e2e5ea;
+    --accent: #1f6feb;
+    --accent-text: #ffffff;
+    --chip: #eef1f5;
+    --good: #1a7f37;
+    --bad: #c62828;
+    --steel-1: #e9ebee;
+    --steel-2: #a9adb3;
+    --hero-1: #1c1f5a;
+    --hero-2: #0e6f86;
+    --hero-3: #2ab38f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --surface: #171a20;
+      --text: #eceef2;
+      --muted: #9aa3b2;
+      --line: #262b33;
+      --accent: #4c8dff;
+      --chip: #20242c;
+      --good: #4ac26b;
+      --bad: #ff6b6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  header.hero {
+    color: #fff;
+    background: linear-gradient(135deg, var(--hero-1), var(--hero-2) 55%, var(--hero-3));
+    padding: 56px 0 64px;
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .brand img { width: 56px; height: 56px; border-radius: 13px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  .brand span { font-weight: 700; font-size: 22px; letter-spacing: -.01em; }
+  h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.08; margin: 0 0 14px; letter-spacing: -.02em; }
+  .lede { font-size: 18px; opacity: .92; margin: 0 0 26px; max-width: 34em; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px; border-radius: 12px; font-weight: 600; text-decoration: none;
+    border: 1px solid transparent; min-height: 44px;
+  }
+  .btn.primary { background: #fff; color: #10233f; }
+  .btn.ghost { color: #fff; border-color: rgba(255,255,255,.45); }
+  .btn.ghost:hover { background: rgba(255,255,255,.1); }
+  .release-meta { margin-top: 14px; font-size: 14px; opacity: .85; min-height: 1.5em; }
+
+  .phones { display: flex; justify-content: center; gap: 14px; }
+  .phones img {
+    width: 46%; max-width: 210px; border-radius: 26px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.35); border: 6px solid #0b0c0e; background: #000;
+  }
+  .phones img:nth-child(2) { transform: translateY(26px); }
+
+  section { padding: 56px 0 8px; }
+  h2 { font-size: 28px; letter-spacing: -.01em; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 26px; }
+
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .downloads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dl { display: flex; flex-direction: column; gap: 10px; }
+  .dl .tag { align-self: flex-start; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+  .dl .tag.ok { color: var(--good); }
+  .dl .btn { align-self: flex-start; background: var(--accent); color: var(--accent-text); }
+  .dl .btn.secondary { background: var(--chip); color: var(--text); }
+  .dl .btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+  .note {
+    margin-top: 18px; padding: 14px 16px; border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 15px;
+  }
+  .note strong { color: var(--text); }
+
+  ol.steps { padding-left: 20px; margin: 0; }
+  ol.steps li { margin: 0 0 10px; }
+
+  .shots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .shots figure { margin: 0; }
+  .shots img { width: 100%; border-radius: 18px; border: 4px solid #0b0c0e; background: #000; display: block; }
+  .shots figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; text-align: center; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 15px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  .yes { color: var(--good); font-weight: 600; }
+  .no { color: var(--bad); font-weight: 600; }
+
+  .n8key {
+    display: inline-block; width: 46px; height: 22px; border-radius: 6px; vertical-align: -5px;
+    background: linear-gradient(var(--steel-1), var(--steel-2)); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.4);
+  }
+
+  footer { padding: 48px 0 40px; color: var(--muted); font-size: 14px; }
+  footer p { margin: 0 0 8px; }
+
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .features, .downloads { grid-template-columns: 1fr 1fr; }
+    .shots { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 560px) {
+    header.hero { padding: 36px 0 48px; }
+    .features, .downloads { grid-template-columns: 1fr; }
+    .shots { grid-template-columns: 1fr 1fr; }
+    .phones img { width: 44%; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="brand"><img src="assets/icon.png" alt=""><span>SymbianBoard</span></div>
+      <h1>Symbian apps on your iPhone.</h1>
+      <p class="lede">The phone's real apps — Calculator, Gallery, Notes, games and anything you install —
+        running in an emulated Nokia, on a home screen that behaves like iOS.</p>
+      <div class="actions">
+        <a class="btn primary" id="hero-download" href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest">Download for iPhone</a>
+        <a class="btn ghost" href="https://github.com/harkhowalia-1/SymbianBoard">Source on GitHub</a>
+      </div>
+      <div class="release-meta" id="release-meta">Latest build on GitHub Releases.</div>
+    </div>
+    <div class="phones">
+      <img src="assets/home-iphone.jpg" alt="iPhone-style home screen with Nokia N8 apps">
+      <img src="assets/gallery-iphone-photos.jpg" alt="The Nokia N8 Gallery showing iPhone photos">
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="features">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <p class="sub">Built on the EKA2L1 Symbian emulator, with a front end made for the iPhone.</p>
+      <div class="features">
+        <div class="card"><h3>iPhone-style home screen</h3><p>Pages of real Symbian icons, a dock, folders, long-press actions and jiggle mode.</p></div>
+        <div class="card"><h3>Or the full Symbian look</h3><p>Switch to a Symbian^3 Menu with its status bar and Options / Exit softkeys.</p></div>
+        <div class="card"><h3>The N8's Menu key</h3><p>The silver <span class="n8key" aria-hidden="true"></span> key from the N8's body sits under every app. Call keys appear in calling apps.</p></div>
+        <div class="card"><h3>Install with +</h3><p>Pick a .sis or .sisx package and it installs onto the phone, icon and all.</p></div>
+        <div class="card"><h3>Your photos and music</h3><p>Your newest photos show up in the N8's own Gallery; songs on the iPhone are copied for the Music player.</p></div>
+        <div class="card"><h3>Shortcuts</h3><p>Add any Symbian app to the iPhone Home Screen, run it from Shortcuts, or ask Siri.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="wrap">
+      <h2>Download</h2>
+      <p class="sub" id="download-sub">Builds are published on GitHub Releases and update here automatically.</p>
+      <div class="downloads">
+        <div class="card dl">
+          <span class="tag ok">JIT · fastest</span>
+          <h3>iPhone — sideload IPA</h3>
+          <p class="sub" style="margin:0">Install with AltStore, SideStore or Sideloadly.</p>
+          <a class="btn" id="ipa-link" href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest/download/SymbianBoard.ipa">Download IPA</a>
+        </div>
+        <div class="card dl">
+          <span class="tag">Updates automatically</span>
+          <h3>AltStore / SideStore source</h3>
+          <p class="sub" style="margin:0">Add the source once and get every new build in the store app.</p>
+          <a class="btn" href="altstore://source?url=https://harkhowalia-1.github.io/SymbianBoard/altstore.json">Add to AltStore</a>
+          <a class="btn secondary" href="sidestore://source?url=https://harkhowalia-1.github.io/SymbianBoard/altstore.json">Add to SideStore</a>
+        </div>
+        <div class="card dl">
+          <span class="tag">Coming</span>
+          <h3>Mac</h3>
+          <p class="sub" style="margin:0">A native Mac version with launchers in Applications is in progress.</p>
+          <a class="btn secondary" aria-disabled="true" href="#">Not available yet</a>
+        </div>
+      </div>
+      <div class="note"><strong>Firmware is not included.</strong> Nokia's firmware is copyrighted, so SymbianBoard ships without it.
+        On first launch choose <em>Install Device → Nokia firmware (.vpl)</em> and pick the unzipped firmware folder of a phone you own
+        (for example a Nokia N8, RM-596).</div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install</h2>
+      <ol class="steps">
+        <li>Install the IPA with <a href="https://altstore.io">AltStore</a>, <a href="https://sidestore.io">SideStore</a> or <a href="https://sideloadly.io">Sideloadly</a> — or add the source above.</li>
+        <li>For full speed, enable JIT for SymbianBoard with SideStore or <a href="https://github.com/StephenDev0/StikDebug">StikDebug</a>. Without JIT it still runs, more slowly.</li>
+        <li>Open SymbianBoard and install your device's firmware.</li>
+        <li>Tap <b>+</b> to add Symbian apps (.sis / .sisx), then open them from the home screen.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="screenshots">
+    <div class="wrap">
+      <h2>Screenshots</h2>
+      <p class="sub">Nokia N8 firmware, iPhone 18 Pro simulator.</p>
+      <div class="shots">
+        <figure><img src="assets/home-iphone.jpg" alt="iPhone-style home screen" loading="lazy"><figcaption>Home screen</figcaption></figure>
+        <figure><img src="assets/long-press-menu.jpg" alt="Long-press menu on an app icon" loading="lazy"><figcaption>Long-press</figcaption></figure>
+        <figure><img src="assets/app-calculator.jpg" alt="N8 Calculator running" loading="lazy"><figcaption>N8 Calculator</figcaption></figure>
+        <figure><img src="assets/gallery-iphone-photos.jpg" alt="N8 Gallery with iPhone photos" loading="lazy"><figcaption>Gallery + iPhone photos</figcaption></figure>
+        <figure><img src="assets/home-symbian.jpg" alt="Symbian^3-style Menu" loading="lazy"><figcaption>Symbian Menu mode</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="wrap">
+      <h2>Status</h2>
+      <p class="sub">Early. Tested in the iOS simulator; real iPhones next.</p>
+      <table>
+        <thead><tr><th>Area</th><th>State</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Home screens, folders, jiggle mode</td><td class="yes">Works</td><td>iPhone and Symbian styles</td></tr>
+          <tr><td>Calculator, Files, Notes</td><td class="yes">Works</td><td>Apps resume instantly from the home screen</td></tr>
+          <tr><td>Gallery with iPhone photos</td><td class="yes">Works</td><td>Grid and thumbnails; opening one photo still crashes</td></tr>
+          <tr><td>Music player</td><td class="no">Not yet</td><td>Quits on launch; fix in progress</td></tr>
+          <tr><td>Real iPhone hardware</td><td>Untested</td><td>Feedback welcome in Issues</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>SymbianBoard is a fork of <a href="https://github.com/EKA2L1/EKA2L1">EKA2L1</a> — the emulator is the EKA2L1 team's work. Licensed under the GNU GPL v3.</p>
+    <p>Symbian and Nokia firmware, apps and trademarks belong to their owners. SymbianBoard ships none of them.</p>
+    <p><a href="https://github.com/harkhowalia-1/SymbianBoard/issues">Report a problem</a> · <a href="https://github.com/harkhowalia-1/SymbianBoard/releases">All releases</a></p>
+  </div>
+</footer>
+
+<script>
+  // Show the newest release's version and date, and link its IPA directly.
+  (async () => {
+    try {
+      const res = await fetch("https://api.github.com/repos/harkhowalia-1/SymbianBoard/releases/latest");
+      if (!res.ok) return;
+      const rel = await res.json();
+      const date = new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      const meta = document.getElementById("release-meta");
+      meta.textContent = `Latest: ${rel.name || rel.tag_name} · ${date}`;
+      const ipa = (rel.assets || []).find(a => a.name.endsWith(".ipa"));
+      if (ipa) {
+        const mb = (ipa.size / 1048576).toFixed(0);
+        const link = document.getElementById("ipa-link");
+        link.href = ipa.browser_download_url;
+        link.textContent = `Download IPA (${mb} MB)`;
+        document.getElementById("hero-download").href = ipa.browser_download_url;
+        document.getElementById("download-sub").textContent = `${rel.name || rel.tag_name}, published ${date}.`;
+      }
+    } catch (e) { /* the static links still work */ }
+  })();
+</script>
+</body>
+</html>

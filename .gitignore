@@ -30,3 +30,7 @@ testpaint.bmp
 __pycache__/
 *.pyc
 /firmware/
+/.claude/
+
+# SymbianBoard website (GitHub Pages)
+!/docs/

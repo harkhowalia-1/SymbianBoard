@@ -1,65 +1,116 @@
-<div class="header">
-  <p align="center">
-     <img src="https://i.imgur.com/FasrbKV.png" width="256">
-     <!-- Margin not working for some reasons! Tried to fix it by searching but not working! Feel free to submit a patch! -->
-     &nbsp;
-     <!-- Old link: https://femto.pw/rasu.gif -->
-     <img src="https://raw.githubusercontent.com/EKA2L1/eka2l1.github.io/main/assets/main/logo.gif">
-  </p>
+<h1 align="center">SymbianBoard</h1>
 
-  <p align="center">
-    <a href="https://github.com/EKA2L1/EKA2L1/actions?query=branch%3Amaster"><img src="https://github.com/eka2l1/eka2l1/workflows/C/C++%20CI/badge.svg"></a>
-    <a href="https://crowdin.com/project/eka2l1"><img src="https://badges.crowdin.net/eka2l1/localized.svg"></a>
-  </p>
+<p align="center"><b>Symbian apps on your iPhone, on a home screen that feels like iOS.</b><br>
+Built on the <a href="https://github.com/EKA2L1/EKA2L1">EKA2L1</a> Symbian emulator.</p>
 
-  <h3 align="center">Symbian OS/N-Gage emulator, written in C++ 17.</h3>
-</div>
+<p align="center">
+  <a href="https://harkhowalia-1.github.io/SymbianBoard/"><b>Website</b></a> ·
+  <a href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest"><b>Download</b></a> ·
+  <a href="#building-from-source"><b>Build from source</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/assets/home-iphone.jpg" width="200" alt="iPhone-style home screen with Nokia N8 apps">
+  <img src="docs/assets/app-calculator.jpg" width="200" alt="Nokia N8 Calculator running with the N8 Menu key">
+  <img src="docs/assets/gallery-iphone-photos.jpg" width="200" alt="Nokia N8 Gallery showing photos from the iPhone">
+  <img src="docs/assets/home-symbian.jpg" width="200" alt="Symbian^3-style Menu home screen">
+</p>
 
 ---
 
-The emulator *emulates* Symbian OS/N-Gage's kernel, and *reimplement* most of its critical app servers and libraries. 
+SymbianBoard runs real Symbian apps — the phone's own Calculator, Gallery, Notes,
+games, and anything you install from a `.sis`/`.sisx` package — inside an emulated
+Nokia phone, and puts them on a home screen that behaves like the iPhone's. Apps open
+straight from their icons, keep running when you go home, and come back instantly.
 
-### Download Builds/Artifacts:
+## Features
 
-- Builds/Artifacts for Windows, OSX, Linux and Android are provided through Github Actions. Click on the [***Releases***](https://github.com/EKA2L1/EKA2L1/releases/tag/continous) section to get the newest stable build.
+- **iPhone-style home screen** — paged icon grid with the apps' real Symbian icons,
+  a dock, a "Symbian" folder for the phone's built-in apps, long-press quick actions,
+  and jiggle mode to rearrange or remove apps.
+- **Or a Symbian home screen** — switch to a Symbian^3-style Menu (status bar, icon
+  grid, Options / Exit softkeys), like running the full phone.
+- **The N8's Menu key** — the silver rounded-rectangle key from the Nokia N8's body is
+  always under a running app; the green and red call keys appear in the calling apps.
+- **Install apps with +** — pick a `.sis` or `.sisx` file and it installs onto the phone.
+- **Shortcuts** — every app has a `symbianboard://` launch link, shows up in the
+  Shortcuts app ("Open Symbian App"), and can be added to the iPhone Home Screen.
+- **Your iPhone's photos and music on the phone** — your newest photos appear in the
+  N8's own Gallery; songs stored on the iPhone are copied for the Music player; pictures
+  Symbian apps save go to your iPhone Photos.
+- **Fast** — apps stay running behind the home screen; the dynarmic JIT is built into the
+  sideload version.
+- **Install firmware from Nokia packages** — point it at an unzipped firmware folder
+  (`.vpl` + `.fpsx` files, e.g. Nokia N8 RM-596) and it installs the device.
 
-    - **Note:** There's no official maintainer for OSX and Linux versions of the emulator. Please report to the developers through issues if versions for these OSes are not working.
+## Download
 
-### Compatibility:
-- At the moment the emulator supports:
-    - Almost all official N-Gage/N-Gage 2.0 official libraries
-    - Most of Symbian's game libraries from S60v1 to Symbian Belle
-    - A limited subsets of Symbian applications.
+| Build | JIT | Where |
+| --- | --- | --- |
+| **iOS sideload IPA** | ✅ (needs a JIT enabler at run time) | [Latest release](https://github.com/harkhowalia-1/SymbianBoard/releases/latest) |
+| App Store / TestFlight | ❌ (Apple doesn't allow JIT) | Not published yet |
+| Mac | — | In progress |
 
-- Compatibility for the games and software that can (and can't) run on the emulator can be verified [**here**](https://github.com/EKA2L1/Compatibility-List)
+1. Install the IPA with [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or
+   [Sideloadly](https://sideloadly.io).
+2. For full speed, enable JIT for SymbianBoard with SideStore or
+   [StikDebug](https://github.com/StephenDev0/StikDebug). Without it the app still works,
+   on the slower interpreter.
+3. On first launch, install a device: **Install Device → Nokia firmware (.vpl)**, then choose
+   the unzipped firmware folder. Use firmware from a phone you own.
 
-### Links
+> **Firmware is not included.** Nokia's firmware is copyrighted, so public builds ship
+> without it. Personal builds can bundle a device you own for a zero-setup first launch
+> (see below) — don't publish those.
 
-For more information, discussion and support, please visit these links:
+## What works
 
-- [**Homepage**](https://eka2l1.github.io/)
-- [**Emulator Wiki**](https://eka2l1.miraheze.org/wiki/Main_Page)
-- [**Discord server**](https://discord.gg/5Bm5SJ9)
+Tested in the iOS simulator with a Nokia N8 (RM-596, Symbian^3) firmware.
 
-### Screenshots
+| | Status |
+| --- | --- |
+| Home screen, folders, jiggle mode, Symbian Menu mode | ✅ |
+| Calculator, Files, Notes and other simple apps | ✅ |
+| Gallery listing iPhone photos (N8 harvester + thumbnails) | ✅ |
+| Opening a single photo full screen in Gallery | ❌ crashes (being fixed) |
+| Music player | ❌ quits on launch (being fixed) |
+| Clock | ❌ quits on launch |
+| Real iPhone hardware | Not tested yet |
 
-Calculator (5530)                                               |  High Seize                                                   |          Dirk Dagger
-:--------------------------------------------------------------:|:-------------------------------------------------------------:|:-----------------------------------------------:
-![calculator](screenshots/0.0.8/screenshot_008_calculator.jpg)  | ![highseize](screenshots/0.0.8/screenshot_008_highseize.jpg)  | ![dirkdagger1](screenshots/0.0.8/screenshot_008_dirkdagger1.jpg)
+App compatibility follows EKA2L1's: many Symbian apps and games run, some don't.
+See the [EKA2L1 compatibility list](https://github.com/EKA2L1/Compatibility-List).
 
-The Big Roll in Paradise                                 | Mega Monster       
-:-------------------------------------------------------:|:-----------------------------------------------------------------:
-![BigRoll](screenshots/0.0.8/screenshot_008_bigroll.jpg) | ![MegaMonster](screenshots/0.0.8/screenshot_008_megamonster.jpg)
+## Building from source
 
-### Donations
+Requires macOS with Xcode 26+ and CMake.
 
-From 2022, developing the emulator has shifted to become a part-time hobby and sometimes not actively maintained in months, since the compatibility for most popular games and Symbian operating systems have been satisfied.
+```sh
+git clone --recurse-submodules https://github.com/harkhowalia-1/SymbianBoard
+cd SymbianBoard
+EKA2L1_IOS_CONFIGURATION=Release scripts/build_ios.sh simulator   # iOS simulator
+EKA2L1_IOS_CONFIGURATION=Release scripts/build_ios.sh ipa         # sideload IPA with JIT
+EKA2L1_IOS_DEVELOPMENT_TEAM=<team> scripts/build_ios.sh archive  # App Store build (no JIT)
+```
 
-Still, if you feel like our work has benefited you much and you want to support or give us some cheers, feel free to donate to two developers that maintain the PC/Android version by visiting the **Sponsor this project** section of the Github page.
+**Zero-setup personal builds:** install a device once (in the simulator or on a phone),
+then copy its `data/drives/z/<code>`, `data/drives/c`, `data/roms/<code>` and
+`data/devices.yml` into `firmware/BundledDevice/` (git-ignored). Builds then ship that
+device and boot straight to the home screen. Set `SYMBIANBOARD_BUNDLE_DEVICE=OFF` to leave
+it out; `archive` always leaves it out.
 
-Visit this [link](https://eka2l1.github.io/quickstart/donation/) for more information.
+### What SymbianBoard adds to EKA2L1
 
-  -------------
- *GIFs are provided by [**Stranno**](https://www.youtube.com/user/9esferas1)!*
- 
- *Logo is designed and drawn by dmolina007 and Frenesi!*
+- `src/emu/ios/App/` — the home screens (`Springboard.swift`, `SymbianHome.swift`), N8
+  control bar, shortcuts (`HomeShortcuts.swift`), first-run setup, and the iPhone media
+  bridge (`MediaBridge.swift`).
+- `src/emu/ios/Bridge/` — Nokia firmware (`.vpl`) install, running-app resume, host file
+  events.
+- Emulator core — `RTimer::Inactivity`, an emulated metadata (MDS) file server plugin so
+  Symbian's media harvester sees new files, quieter release logging.
+
+## Credits and licence
+
+SymbianBoard is a fork of [EKA2L1](https://github.com/EKA2L1/EKA2L1) by the EKA2L1 team —
+the emulator itself is their work. Like EKA2L1, SymbianBoard is licensed under the
+[GNU GPL v3](LICENSE). Symbian and Nokia firmware, apps and trademarks belong to their
+owners; SymbianBoard ships none of them.
