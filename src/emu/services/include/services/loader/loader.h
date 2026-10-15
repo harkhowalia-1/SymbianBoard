@@ -74,6 +74,11 @@ namespace eka2l1 {
 
         void load_locale(service::ipc_context &context);
 
+        // RFs::AddPlugin asks the loader for the plugin DLL. File server plugins
+        // are emulated inside the HLE file server (fs/plugin.cpp), so there is
+        // nothing to load.
+        void load_fs_plugin(service::ipc_context &context);
+
     public:
         explicit loader_server(system *sys);
     };

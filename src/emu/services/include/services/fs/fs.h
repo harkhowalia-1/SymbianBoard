@@ -20,6 +20,9 @@
 
 #pragma once
 
+#include <deque>
+#include <map>
+#include <memory>
 #include <kernel/server.h>
 #include <services/context.h>
 #include <services/framework.h>
@@ -84,6 +87,10 @@ namespace eka2l1 {
         int mix_mode;
         int open_mode;
         bool temporary = false;
+
+        // For the metadata plugin's file events, reported when the handle closes.
+        bool created = false;
+        bool written = false;
 
         kernel::uid process{ 0 };
 
@@ -185,6 +192,13 @@ namespace eka2l1 {
         void set_should_notify_failure(service::ipc_context *ctx);
 
         void read_file_section(service::ipc_context *ctx);
+
+        void plugin_accept(service::ipc_context *ctx);
+        void plugin_open(service::ipc_context *ctx);
+        void plugin_close(service::ipc_context *ctx);
+        void plugin_do_request(service::ipc_context *ctx);
+        void plugin_do_control(service::ipc_context *ctx);
+        void plugin_do_cancel(service::ipc_context *ctx);
 
         void query_drive_info_ext(service::ipc_context *ctx);
         void drive_list(service::ipc_context *ctx);
@@ -330,6 +344,48 @@ namespace eka2l1 {
         std::set<std::u16string> temporary_file_cleanset_;
 
         void init();
+
+    public:
+        // TMdsFileEventType, as the metadata file server plugin reports them.
+        enum mds_file_event_type {
+            mds_file_created = 0,
+            mds_file_renamed = 1,
+            mds_file_modified = 2,
+            mds_file_replaced = 3,
+            mds_file_deleted = 4
+        };
+
+        struct mds_plugin_event {
+            std::int32_t type;
+            std::int32_t drive;
+            std::u16string name;
+            std::u16string new_name;
+            std::uint32_t process_uid;
+        };
+
+        /**
+         * \brief Report a change to a file for the emulated metadata (MDS) file server plugin.
+         *
+         * Called for the guest's own file operations, and by the host frontend for files it
+         * places onto a drive, so the media harvester indexes them (Gallery, Music, ...).
+         * Must be called with the kernel lock held.
+         */
+        void report_file_event(const std::int32_t type, const std::u16string &path,
+            const std::u16string &new_path = std::u16string(), const std::uint32_t process_uid = 0);
+
+    private:
+        friend struct fs_server_client;
+
+        struct mds_plugin_session {
+            std::unique_ptr<service::ipc_context> pending;
+            std::deque<mds_plugin_event> events;
+            bool enabled = true;
+        };
+
+        std::map<std::int32_t, mds_plugin_session> mds_plugin_sessions_;
+        std::int32_t next_mds_plugin_handle_ = 0x7A000001;
+
+        void deliver_mds_events(mds_plugin_session &session);
 
     public:
         explicit fs_server(system *sys);

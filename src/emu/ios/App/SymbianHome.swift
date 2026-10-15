@@ -37,7 +37,6 @@ struct SymbianHomeView<InstallMenu: View, MoreMenu: View>: View {
     @ViewBuilder let moreMenu: () -> MoreMenu
 
     @AppStorage(HomeScreenStyle.storageKey) private var homeStyle = HomeScreenStyle.iphone.rawValue
-    @AppStorage(ControlBarStyle.storageKey) private var controlStyle = ControlBarStyle.symbian.rawValue
     @State private var selected: UInt32?
     @State private var pendingRemoval: EKA2L1AppItem?
 
@@ -157,12 +156,6 @@ struct SymbianHomeView<InstallMenu: View, MoreMenu: View>: View {
                 } label: {
                     Label("Install application", systemImage: "square.and.arrow.down")
                 }
-                Picker(selection: $controlStyle) {
-                    ForEach(ControlBarStyle.allCases) { Text($0.title).tag($0.rawValue) }
-                } label: {
-                    Label("App controls", systemImage: "keyboard")
-                }
-                .pickerStyle(.menu)
                 Divider()
                 moreMenu()
             } label: {

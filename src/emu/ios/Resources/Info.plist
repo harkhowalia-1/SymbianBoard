@@ -83,6 +83,10 @@
     </dict>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Your photos appear in the Symbian Gallery, and pictures taken in Symbian apps are saved to your Photos.</string>
+    <key>NSAppleMusicUsageDescription</key>
+    <string>Songs stored on this iPhone are copied to the Symbian Music player.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>EKA2L1 saves emulator screenshots to your photo library when you choose Save Screenshot.</string>
     <key>UIRequiredDeviceCapabilities</key>

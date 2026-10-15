@@ -94,6 +94,18 @@ final class EKA2L1Bridge {
         emulator.currentDeviceIndex()
     }
 
+    // Host folder behind drive C (phone memory) of the booted device.
+    nonisolated static func currentDeviceDriveCPath() -> String? {
+        EKA2L1Emulator.shared().currentDeviceDriveCPath()
+    }
+
+    // Report files the host put onto / removed from a guest drive to the guest's
+    // media harvester. Guest paths, e.g. C:\Data\Images\iPhone\IMG.jpg.
+    nonisolated static func reportGuestFileEvents(_ guestPaths: [String], type: EKA2L1GuestFileEvent) {
+        guard !guestPaths.isEmpty else { return }
+        EKA2L1Emulator.shared().reportGuestFileEvents(guestPaths, type: type)
+    }
+
     // Host folder behind drive E of the booted device, nil when none is booted.
     nonisolated static func currentDeviceDriveEPath() -> String? {
         EKA2L1Emulator.shared().currentDeviceDriveEPath()

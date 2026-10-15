@@ -42,6 +42,7 @@ set(EKA2L1_IOS_SOURCES
     "${EKA2L1_IOS_APP_DIR}/FirstRunSetup.swift"
     "${EKA2L1_IOS_APP_DIR}/ControlBar.swift"
     "${EKA2L1_IOS_APP_DIR}/SymbianHome.swift"
+    "${EKA2L1_IOS_APP_DIR}/MediaBridge.swift"
     "${EKA2L1_IOS_APP_DIR}/OnboardingView.swift"
     "${EKA2L1_IOS_APP_DIR}/DeviceManagerView.swift"
     "${EKA2L1_IOS_APP_DIR}/DeviceStore.swift"

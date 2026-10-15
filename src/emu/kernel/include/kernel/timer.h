@@ -80,6 +80,11 @@ namespace eka2l1 {
             bool lock(kernel::thread *requester, eka2l1::ptr<epoc::request_status> sts,
                 std::uint32_t fraction);
 
+            // RTimer::Inactivity: complete once the user has been inactive for
+            // `seconds`. 0 means "complete at the next user activity".
+            bool inactivity(kernel::thread *requester, eka2l1::ptr<epoc::request_status> sts,
+                std::uint32_t seconds);
+
             bool request_finish();
             bool cancel_request();
 

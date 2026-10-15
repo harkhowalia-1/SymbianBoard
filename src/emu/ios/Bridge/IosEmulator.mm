@@ -63,6 +63,7 @@
 #include <loader/mif.h>
 #include <package/manager.h>
 #include <services/applist/applist.h>
+#include <services/fs/fs.h>
 #include <services/bluetooth/btman.h>
 #include <services/etel/etel.h>
 #include <services/fbs/bitmap.h>
@@ -1409,6 +1410,44 @@ namespace eka2l1::ios {
         return nil;
     }
     return [NSString stringWithUTF8String:path.c_str()];
+}
+
+- (NSString *)currentDeviceDriveCPath {
+    if (!_state || !_state->mounted || !_state->symsys) {
+        return nil;
+    }
+    auto *dvc = _state->symsys->get_device_manager();
+    if (!dvc) {
+        return nil;
+    }
+    std::lock_guard<std::mutex> dvc_lock(dvc->lock);
+    const std::string path = _state->symsys->get_device_drive_path(drive_c);
+    if (path.empty()) {
+        return nil;
+    }
+    return [NSString stringWithUTF8String:path.c_str()];
+}
+
+- (void)reportGuestFileEvents:(NSArray<NSString *> *)guestPaths type:(EKA2L1GuestFileEvent)type {
+    if (!_state || !_state->symsys || guestPaths.count == 0) {
+        return;
+    }
+    auto *kern = _state->symsys->get_kernel_system();
+    if (!kern) {
+        return;
+    }
+    auto *fs = reinterpret_cast<eka2l1::fs_server *>(kern->get_by_name<eka2l1::service::server>("!FileServer"));
+    if (!fs) {
+        return;
+    }
+    kern->lock();
+    for (NSString *path in guestPaths) {
+        NSData *utf16 = [path dataUsingEncoding:NSUTF16LittleEndianStringEncoding];
+        const std::u16string guest_path(reinterpret_cast<const char16_t *>(utf16.bytes), utf16.length / sizeof(char16_t));
+        fs->report_file_event(static_cast<std::int32_t>(type), guest_path);
+    }
+    kern->stop_cores_idling();
+    kern->unlock();
 }
 
 // Shared body of the two install entry points below. `installer` is handed the

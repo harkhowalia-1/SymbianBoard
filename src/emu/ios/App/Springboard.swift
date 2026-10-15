@@ -400,7 +400,6 @@ struct SpringboardView<InstallMenu: View, MoreMenu: View>: View {
     @AppStorage("springboard.wallpaper") private var wallpaperRaw = HomeWallpaper.aurora.rawValue
     @AppStorage("springboard.showSystemFolder") private var showSystemFolder = true
     @AppStorage(HomeScreenStyle.storageKey) private var homeStyle = HomeScreenStyle.iphone.rawValue
-    @AppStorage(ControlBarStyle.storageKey) private var controlStyle = ControlBarStyle.symbian.rawValue
 
     @StateObject private var layout = HomeLayoutStore()
     @State private var page = 0
@@ -556,12 +555,6 @@ struct SpringboardView<InstallMenu: View, MoreMenu: View>: View {
                         ForEach(HomeScreenStyle.allCases) { Text($0.title).tag($0.rawValue) }
                     } label: {
                         Label("Home Screen Style", systemImage: "iphone.gen1")
-                    }
-                    .pickerStyle(.menu)
-                    Picker(selection: $controlStyle) {
-                        ForEach(ControlBarStyle.allCases) { Text($0.title).tag($0.rawValue) }
-                    } label: {
-                        Label("App Controls", systemImage: "keyboard")
                     }
                     .pickerStyle(.menu)
                     Divider()

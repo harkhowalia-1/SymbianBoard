@@ -484,6 +484,9 @@ namespace eka2l1 {
 
         node->vfs_node = std::move(new_vfs_file);
 
+        server<fs_server>()->report_file_event(fs_server::mds_file_renamed, old_path, new_path_abs,
+            ctx->msg->own_thr->owning_process()->get_uid());
+
         auto &attribs = server<fs_server>()->attribs;
         auto attrib_node = attribs.extract(canonical_file_attrib_path(old_path));
         if (!attrib_node.empty()) {
@@ -554,6 +557,7 @@ namespace eka2l1 {
         // If this write pos is beyond the current end of file, use last pos
         vfs_file->seek(write_pos, file_seek_mode::beg);
         size_t wrote_size = vfs_file->write_file(write_data.value().data(), 1, write_len);
+        node->written = true;
 
         //LOG_TRACE(SERVICE_EFSRV, "File {} wroted with size: {}, at {}", common::ucs2_to_utf8(vfs_file->file_name()), wrote_size, write_pos);
 
@@ -638,6 +642,15 @@ namespace eka2l1 {
         // Reset its status, so seek back, this is just in case it got used again
         vfs_file->flush();
         vfs_file->seek(0, file_seek_mode::beg);
+
+        // A finished new file, or new content in an old one, is what the media
+        // harvester picks up.
+        if ((node->created || node->written) && !node->temporary) {
+            server<fs_server>()->report_file_event(node->created ? fs_server::mds_file_created : fs_server::mds_file_modified,
+                vfs_file->file_name(), std::u16string(), ctx->msg->own_thr->owning_process()->get_uid());
+            node->created = false;
+            node->written = false;
+        }
 
         obj_table_.remove(*handle_res);
         ctx->complete(epoc::error_none);
@@ -930,6 +943,15 @@ namespace eka2l1 {
         }
 
         LOG_TRACE(SERVICE_EFSRV, "Handle opened: {}", handle);
+
+        if (fs_node *opened_node = get_file_node(handle)) {
+            if (!is_it_avail) {
+                opened_node->created = true;
+            } else if (overwrite) {
+                // Replaced in place: new content for an existing file.
+                opened_node->written = true;
+            }
+        }
 
         ctx->write_data_to_descriptor_argument<int>(3, handle);
         ctx->complete(epoc::error_none);

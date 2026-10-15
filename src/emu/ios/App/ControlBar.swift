@@ -1,72 +1,81 @@
 import SwiftUI
 import UIKit
 
-// The phone controls shown under a running Symbian app, so it can be driven
-// like the phone it came from:
+// The N8's keys under a running Symbian app: the silver Menu key (back to the
+// home screen), and — only in the phone's calling apps — the green call and
+// red end keys, plus a small ⋯ for the emulator's own options.
 //
-//   - N8: green call key, the N8's Menu key (back to the home screen), red end
-//     key — the keys under an N8's screen.
-//   - Android: back (Symbian's back softkey), home, and the overview key, which
-//     opens the emulator options.
-//   - iPhone: only the home bar; swipe it up to leave the app.
-//
-// Chosen in the home screen's ⋯ menu; stored under "controls.style".
-enum ControlBarStyle: String, CaseIterable, Identifiable {
-    case symbian
-    case android
-    case homeBar
-
-    static let storageKey = "controls.style"
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .symbian: return "Nokia N8"
-        case .android: return "Android"
-        case .homeBar: return "iPhone home bar"
-        }
-    }
-}
-
+// The keys show while an app opens and then tuck away into a slim silver
+// handle along the bottom edge, so the app gets the whole screen; tapping or
+// swiping up on the handle brings them back for a few seconds.
 struct AppControlBar: View {
-    let style: ControlBarStyle
+    let appUID: UInt32
     let actions: KeypadMenuActions
     let goHome: () -> Void
 
+    @State private var expanded = true
+    @State private var collapseWork: DispatchWorkItem?
+
+    // Apps whose UI expects the call keys: Telephone, Log, Contacts, Speed
+    // dial and Call mailbox on S60v5 / Symbian^3.
+    private static let callKeyApps: Set<UInt32> = [
+        0x100058B3, 0x101F4CD5, 0x101F4CCE, 0x1000590A, 0x100058F5,
+    ]
+
+    private var showsCallKeys: Bool { Self.callKeyApps.contains(appUID) }
+
     var body: some View {
-        switch style {
-        case .symbian:
-            symbianBar
-        case .android:
-            androidBar
-        case .homeBar:
-            HomeIndicatorBar(goHome: goHome)
+        ZStack(alignment: .bottom) {
+            if expanded {
+                keys
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                handle
+                    .transition(.opacity)
+            }
         }
+        .animation(.spring(response: 0.32, dampingFraction: 0.88), value: expanded)
+        .onAppear { scheduleCollapse(after: 4) }
     }
 
-    // MARK: N8
+    // MARK: Keys
 
-    private var symbianBar: some View {
+    private var keys: some View {
         HStack(spacing: 0) {
-            phoneKey(color: Color(red: 0.18, green: 0.72, blue: 0.29), symbol: "phone.fill",
-                     scan: Scan.call, label: "Call")
-                .frame(maxWidth: .infinity)
+            if showsCallKeys {
+                phoneKey(color: Color(red: 0.18, green: 0.72, blue: 0.29), symbol: "phone.fill",
+                         scan: Scan.call, label: "Call")
+                    .frame(maxWidth: .infinity)
+            } else {
+                Spacer().frame(maxWidth: .infinity)
+            }
             n8MenuKey
-            phoneKey(color: Color(red: 0.86, green: 0.16, blue: 0.16), symbol: "phone.down.fill",
-                     scan: Scan.end, label: "End")
-                .frame(maxWidth: .infinity)
+            if showsCallKeys {
+                phoneKey(color: Color(red: 0.86, green: 0.16, blue: 0.16), symbol: "phone.down.fill",
+                         scan: Scan.end, label: "End")
+                    .frame(maxWidth: .infinity)
+            } else {
+                Spacer().frame(maxWidth: .infinity)
+            }
         }
         .overlay(alignment: .trailing) {
-            optionsKey(symbol: "ellipsis")
+            SystemMenuKey(actions: actions, symbol: "ellipsis", bare: true)
+                .foregroundColor(.white.opacity(0.85))
                 .padding(.trailing, 6)
         }
         .padding(.horizontal, 12)
         .frame(height: 54)
-        .background(barBackground)
+        .background(
+            LinearGradient(colors: [Color(white: 0.16), Color(white: 0.04)], startPoint: .top, endPoint: .bottom)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5)
+                }
+        )
+        // Any touch on the bar keeps it up a little longer.
+        .simultaneousGesture(TapGesture().onEnded { scheduleCollapse(after: 4) })
     }
 
-    // The silver key under an N8's screen, with the Symbian menu glyph.
+    // The silver key under an N8's screen.
     private var n8MenuKey: some View {
         Button(action: goHome) {
             ZStack {
@@ -89,6 +98,7 @@ struct AppControlBar: View {
         Button {
             Haptics.impact(.light)
             EKA2L1Bridge.shared.tapRawKey(scan)
+            scheduleCollapse(after: 4)
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
@@ -100,48 +110,36 @@ struct AppControlBar: View {
         .accessibilityLabel(label)
     }
 
-    // MARK: Android
+    // MARK: Handle
 
-    private var androidBar: some View {
-        HStack(spacing: 0) {
-            navButton(symbol: "arrowtriangle.left", label: "Back") {
-                Haptics.impact(.light)
-                EKA2L1Bridge.shared.tapRawKey(Scan.rightSoft)
-            }
-            navButton(symbol: "circle", label: "Home", action: goHome)
-            optionsKey(symbol: "square")
-                .frame(maxWidth: .infinity)
-        }
-        .frame(height: 48)
-        .background(Color.black.opacity(0.92))
+    // A short silver bar, like the N8's Menu key seen edge-on.
+    private var handle: some View {
+        Capsule()
+            .fill(LinearGradient(colors: [Color(white: 0.85), Color(white: 0.55)], startPoint: .top, endPoint: .bottom))
+            .frame(width: 92, height: 5)
+            .shadow(color: .black.opacity(0.5), radius: 1)
+            .frame(width: 180, height: 28)
+            .contentShape(Rectangle())
+            .padding(.bottom, 4)
+            .onTapGesture(perform: reveal)
+            .gesture(DragGesture(minimumDistance: 6).onEnded { value in
+                if value.translation.height < -12 { reveal() }
+            })
+            .accessibilityLabel("Show phone keys")
+            .accessibilityAddTraits(.isButton)
     }
 
-    private func navButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundColor(.white.opacity(0.85))
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(PressScaleStyle())
-        .accessibilityLabel(label)
+    private func reveal() {
+        Haptics.impact(.light)
+        expanded = true
+        scheduleCollapse(after: 4)
     }
 
-    // MARK: Shared
-
-    // The emulator's own options (layout editing, screenshot, game settings,
-    // exit), the same menu the keypad's menu key carries.
-    private func optionsKey(symbol: String) -> some View {
-        SystemMenuKey(actions: actions, symbol: symbol, bare: true)
-            .foregroundColor(.white.opacity(0.85))
-    }
-
-    private var barBackground: some View {
-        LinearGradient(colors: [Color(white: 0.16), Color(white: 0.04)], startPoint: .top, endPoint: .bottom)
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5)
-            }
+    private func scheduleCollapse(after seconds: Double) {
+        collapseWork?.cancel()
+        let work = DispatchWorkItem { expanded = false }
+        collapseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
     }
 }
 
@@ -151,40 +149,5 @@ private struct PressScaleStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.92 : 1)
             .opacity(configuration.isPressed ? 0.75 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-// The bar along the bottom edge of an iPhone app. A short swipe up (or a tap)
-// leaves the emulator screen; the touch area is kept small and centred so it
-// stays clear of the guest's soft keys in the corners.
-struct HomeIndicatorBar: View {
-    let goHome: () -> Void
-
-    @State private var lift: CGFloat = 0
-
-    var body: some View {
-        Capsule()
-            .fill(Color.white.opacity(0.75))
-            .frame(width: 134, height: 5)
-            .shadow(color: .black.opacity(0.4), radius: 1)
-            .offset(y: lift)
-            .frame(width: 180, height: 30)
-            .contentShape(Rectangle())
-            .padding(.bottom, 4)
-            .gesture(
-                DragGesture(minimumDistance: 4)
-                    .onChanged { value in
-                        lift = min(0, value.translation.height / 3)
-                    }
-                    .onEnded { value in
-                        withAnimation(.spring(response: 0.25)) { lift = 0 }
-                        if value.translation.height < -24 {
-                            goHome()
-                        }
-                    }
-            )
-            .onTapGesture(perform: goHome)
-            .accessibilityLabel("Home")
-            .accessibilityAddTraits(.isButton)
     }
 }

@@ -17,7 +17,6 @@ struct EmulatorView: View {
     @AppStorage(DisplayLayoutDefaults.portraitKey) private var portraitDisplayLayout = ""
     @AppStorage(DisplayLayoutDefaults.landscapeKey) private var landscapeDisplayLayout = ""
     @AppStorage("ios.showFPSOverlay") private var showFPSOverlay = false
-    @AppStorage(ControlBarStyle.storageKey) private var controlStyleRaw = ControlBarStyle.symbian.rawValue
     @AppStorage("ios.fpsOverlayX") private var fpsOverlayX = -1.0
     @AppStorage("ios.fpsOverlayY") private var fpsOverlayY = -1.0
     @Environment(\.dismiss) private var dismiss
@@ -219,7 +218,7 @@ struct EmulatorView: View {
             // backgrounds most apps, so these are how you get home.
             .overlay(alignment: .bottom) {
                 if !isEditingLayout {
-                    AppControlBar(style: controlStyle, actions: menuActions) {
+                    AppControlBar(appUID: uid, actions: menuActions) {
                         leavingToHome = true
                         dismiss()
                     }
@@ -278,6 +277,7 @@ struct EmulatorView: View {
                 EKA2L1Bridge.shared.closeRunningApp()
             }
             leavingToHome = false
+            MediaBridge.shared.appDidClose()
             UIApplication.shared.isIdleTimerDisabled = wasIdleTimerDisabled
             isEditingKeypad = false
             isEditingDisplay = false
@@ -370,7 +370,7 @@ struct EmulatorView: View {
                 configuration: configuration,
                 fullScreen: isFullscreen,
                 actions: menuActions,
-                hidesMenuKey: controlStyle != .homeBar
+                hidesMenuKey: true
             )
             .opacity(keypadOpacity)
         }
@@ -735,7 +735,3 @@ private struct EmulatorControllerView: UIViewControllerRepresentable {
     }
 }
 
-
-private extension EmulatorView {
-    var controlStyle: ControlBarStyle { ControlBarStyle(rawValue: controlStyleRaw) ?? .symbian }
-}

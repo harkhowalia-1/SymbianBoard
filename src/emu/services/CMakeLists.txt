@@ -239,6 +239,7 @@ add_library(epocservs
         src/fs/drives.cpp
         src/fs/files.cpp
         src/fs/fs.cpp
+        src/fs/plugin.cpp
         src/fs/parser.cpp
         src/fs/std.cpp
         src/goommonitor/goommonitor.cpp

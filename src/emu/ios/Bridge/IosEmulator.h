@@ -110,6 +110,21 @@ typedef NS_ENUM(NSInteger, EKA2L1InstallResult) {
 // Index of the currently-booted device, or -1 if none is booted yet.
 - (NSInteger)currentDeviceIndex;
 
+// Host folder of the booted device's drive C (phone memory). nil when no device
+// is booted.
+- (nullable NSString *)currentDeviceDriveCPath;
+
+// Tell the guest's media harvester about files the host put onto (or removed
+// from) a drive, so Gallery, Music and the rest pick them up without a reboot.
+// Paths are guest paths, e.g. C:\Data\Images\iPhone\IMG_0001.jpg.
+typedef NS_ENUM(NSInteger, EKA2L1GuestFileEvent) {
+    EKA2L1GuestFileEventCreated = 0,
+    EKA2L1GuestFileEventModified = 2,
+    EKA2L1GuestFileEventDeleted = 4,
+};
+- (void)reportGuestFileEvents:(NSArray<NSString *> *)guestPaths type:(EKA2L1GuestFileEvent)type
+    NS_SWIFT_NAME(reportGuestFileEvents(_:type:));
+
 // Host folder of the booted device's own drive E, ignoring any game card mounted
 // over it. nil when no device is booted.
 - (nullable NSString *)currentDeviceDriveEPath;

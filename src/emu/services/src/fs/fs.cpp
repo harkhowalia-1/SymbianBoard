@@ -303,6 +303,15 @@ namespace eka2l1 {
             HANDLE_CLIENT_IPC(server<fs_server>()->private_path, epoc::fs_msg_private_path, "Fs::PrivatePath");
             HANDLE_CLIENT_IPC(volume, epoc::fs_msg_volume, "Fs::Volume");
             HANDLE_CLIENT_IPC(query_drive_info_ext, epoc::fs_msg_query_volume_info_ext, "Fs::QueryVolumeInfoExt");
+            HANDLE_CLIENT_IPC(plugin_accept, epoc::fs_msg_add_plugin, "Fs::AddPlugin");
+            HANDLE_CLIENT_IPC(plugin_accept, epoc::fs_msg_remove_plugin, "Fs::RemovePlugin");
+            HANDLE_CLIENT_IPC(plugin_accept, epoc::fs_msg_mount_plugin, "Fs::MountPlugin");
+            HANDLE_CLIENT_IPC(plugin_accept, epoc::fs_msg_dismount_plugin, "Fs::DismountPlugin");
+            HANDLE_CLIENT_IPC(plugin_open, epoc::fs_msg_plugin_open, "Fs::PluginOpen");
+            HANDLE_CLIENT_IPC(plugin_close, epoc::fs_msg_plugin_subclose, "Fs::PluginSubClose");
+            HANDLE_CLIENT_IPC(plugin_do_request, epoc::fs_msg_plugin_do_request, "Fs::PluginDoRequest");
+            HANDLE_CLIENT_IPC(plugin_do_control, epoc::fs_msg_plugin_do_control, "Fs::PluginDoControl");
+            HANDLE_CLIENT_IPC(plugin_do_cancel, epoc::fs_msg_plugin_do_cancel, "Fs::PluginDoCancel");
             HANDLE_CLIENT_IPC(server<fs_server>()->set_default_system_path, epoc::fs_msg_set_default_path, "Fs::SetDefaultPath");
             HANDLE_CLIENT_IPC(server<fs_server>()->get_default_system_path, epoc::fs_msg_default_path, "Fs::DefaultPath");
             HANDLE_CLIENT_IPC(is_file_opened, epoc::fs_msg_is_file_open, "Fs::IsFileOpen");
@@ -381,6 +390,9 @@ namespace eka2l1 {
             return;
         }
 
+        server<fs_server>()->report_file_event(fs_server::mds_file_renamed, target, dest,
+            ctx->msg->own_thr->owning_process()->get_uid());
+
         // A new app list may be created
         ctx->complete(epoc::error_none);
     }
@@ -422,6 +434,9 @@ namespace eka2l1 {
             return;
         }
 
+        server<fs_server>()->report_file_event(fs_server::mds_file_renamed, target, dest,
+            ctx->msg->own_thr->owning_process()->get_uid());
+
         // A new app list may be created
         ctx->complete(epoc::error_none);
     }
@@ -448,6 +463,9 @@ namespace eka2l1 {
             ctx->complete(epoc::error_not_found);
             return;
         }
+
+        server<fs_server>()->report_file_event(fs_server::mds_file_deleted, path, std::u16string(),
+            ctx->msg->own_thr->owning_process()->get_uid());
 
         ctx->complete(epoc::error_none);
     }

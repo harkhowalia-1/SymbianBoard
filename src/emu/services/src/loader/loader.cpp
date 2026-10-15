@@ -407,5 +407,10 @@ namespace eka2l1 {
         REGISTER_IPC(loader_server, load_locale, ELoadLocale, "Loader::LoadLocale");
         REGISTER_IPC(loader_server, load_logical_device, ELoadLogicalDevice, "Loader::LoadLogicalDevice");
         REGISTER_IPC(loader_server, load_physical_device, ELoadPhysicalDevice, "Loader::LoadPhysicalDevice");
+        REGISTER_IPC(loader_server, load_fs_plugin, ELoadFSPlugin, "Loader::LoadFSPlugin");
+    }
+
+    void loader_server::load_fs_plugin(service::ipc_context &context) {
+        context.complete(epoc::error_none);
     }
 }

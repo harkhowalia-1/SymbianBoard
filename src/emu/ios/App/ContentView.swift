@@ -352,8 +352,18 @@ struct ContentView: View {
             }
             return
         }
-        autoLaunchUID = uid
-        showingAutoLaunch = true
+        // Gallery and Music ask for the iPhone's libraries the first time;
+        // the copying itself carries on while the app opens.
+        Task { @MainActor in
+            await MediaBridge.shared.prepare(forAppUID: uid)
+            // A permission prompt leaves the app inactive for a moment; a push
+            // made before it is active again gets dropped.
+            for _ in 0..<40 where UIApplication.shared.applicationState != .active {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+            autoLaunchUID = uid
+            showingAutoLaunch = true
+        }
     }
 
     // A launch link / shortcut names an app and the device it lives on. Boot
@@ -577,6 +587,7 @@ struct ContentView: View {
         if EKA2L1Bridge.shared.start(documentsPath: documentsRoot()) {
             booted = true
             store.refresh()
+            MediaBridge.shared.syncAuthorizedLibraries()
             reportFailedBootDevice()
             selectLaunchRomThenAutoLaunch()
             processPendingOpenURLs()

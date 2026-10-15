@@ -2913,6 +2913,16 @@ namespace eka2l1::epoc {
         timer->after_high_res(kern->crr_thread(), req_sts, us_after);
     }
 
+    BRIDGE_FUNC(void, timer_inactivity, kernel::handle h, eka2l1::ptr<epoc::request_status> req_sts, std::int32_t seconds) {
+        timer_ptr timer = kern->get<kernel::timer>(h);
+
+        if (!timer) {
+            return;
+        }
+
+        timer->inactivity(kern->crr_thread(), req_sts, static_cast<std::uint32_t>(common::max<std::int32_t>(0, seconds)));
+    }
+
     BRIDGE_FUNC(void, timer_lock, kernel::handle h, eka2l1::ptr<epoc::request_status> req_sts, std::uint32_t second_fraction_enum) {
         timer_ptr timer = kern->get<kernel::timer>(h);
 
@@ -6057,6 +6067,7 @@ namespace eka2l1::epoc {
         BRIDGE_REGISTER(0x4D, session_send_sync),
         BRIDGE_REGISTER(0x4F, hal_function),
         BRIDGE_REGISTER(0x52, process_command_line_length),
+        BRIDGE_REGISTER(0x53, timer_inactivity),
         BRIDGE_REGISTER(0x54, get_inactivity_time),
         BRIDGE_REGISTER(0x55, clear_inactivity_time),
         BRIDGE_REGISTER(0x56, debug_print),
@@ -6237,6 +6248,7 @@ namespace eka2l1::epoc {
         BRIDGE_REGISTER(0x4E, dll_tls),
         BRIDGE_REGISTER(0x4F, hal_function),
         BRIDGE_REGISTER(0x52, process_command_line_length),
+        BRIDGE_REGISTER(0x53, timer_inactivity),
         BRIDGE_REGISTER(0x54, get_inactivity_time),
         BRIDGE_REGISTER(0x55, clear_inactivity_time),
         BRIDGE_REGISTER(0x56, debug_print),

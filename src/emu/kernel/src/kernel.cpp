@@ -1606,5 +1606,19 @@ namespace eka2l1 {
 
     void kernel_system::reset_inactivity_time() {
         inactivity_starts_ = timing_->microseconds();
+
+        std::vector<activity_waiter> waiters;
+        {
+            const std::lock_guard<std::mutex> guard(activity_waiters_lock_);
+            waiters.swap(activity_waiters_);
+        }
+        for (const activity_waiter &waiter : waiters) {
+            timing_->schedule_event(static_cast<std::int64_t>(waiter.delay_us), waiter.timer_event_type, waiter.timer_id);
+        }
+    }
+
+    void kernel_system::add_activity_waiter(std::uint64_t timer_id, int timer_event_type, std::uint64_t delay_us) {
+        const std::lock_guard<std::mutex> guard(activity_waiters_lock_);
+        activity_waiters_.push_back({ timer_id, timer_event_type, delay_us });
     }
 }

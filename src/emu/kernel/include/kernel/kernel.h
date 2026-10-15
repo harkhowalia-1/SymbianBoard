@@ -374,6 +374,17 @@ namespace eka2l1 {
         std::uint32_t dll_global_data_last_offset_;
 
         std::uint64_t inactivity_starts_;
+
+        // Timers parked by RTimer::Inactivity until the next user activity,
+        // then fired after their interval. Kept by id and event type so waking
+        // them needs no kernel lock: the timer event resolves the timer under it.
+        std::mutex activity_waiters_lock_;
+        struct activity_waiter {
+            std::uint64_t timer_id;
+            int timer_event_type;
+            std::uint64_t delay_us;
+        };
+        std::vector<activity_waiter> activity_waiters_;
         kernel::process *nanokern_pr_;
 
         kernel::chunk *custom_code_chunk;
@@ -880,6 +891,11 @@ namespace eka2l1 {
          * will be reseted.
          */
         void reset_inactivity_time();
+
+        /**
+         * @brief Register a timer to fire `delay_us` after the next user activity.
+         */
+        void add_activity_waiter(std::uint64_t timer_id, int timer_event_type, std::uint64_t delay_us);
 
         /**
          * @brief Start the bootload procedures.

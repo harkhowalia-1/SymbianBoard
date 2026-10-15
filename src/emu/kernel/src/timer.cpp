@@ -123,6 +123,33 @@ namespace eka2l1 {
             return true;
         }
 
+        bool timer::inactivity(kernel::thread *requester, eka2l1::ptr<epoc::request_status> sts,
+            std::uint32_t seconds) {
+            // As the Symbian kernel does (TInactivityLink::Start): while the user
+            // has been idle for less than `seconds`, complete when the idle time
+            // reaches it. Once it is already past (always so for 0), wait for the
+            // next user activity and count the full interval from there, so a
+            // background task never sees two "inactive" edges in a row.
+            const std::uint32_t idle = kern->inactivity_time();
+            const std::uint64_t interval_us = static_cast<std::uint64_t>(seconds) * common::microsecs_per_sec;
+            if (idle < seconds) {
+                return schedule_at(requester, sts,
+                    timing->microseconds() + common::max<std::uint64_t>(30, interval_us - idle * common::microsecs_per_sec));
+            }
+
+            if (outstanding) {
+                return false;
+            }
+            lock_request_ = false;
+            last_lock_tick_.reset();
+            outstanding = true;
+            activate_defer_count_ = 0;
+            info.done_nof = epoc::notify_info(sts, requester);
+            info.own_timer = this;
+            kern->add_activity_waiter(static_cast<std::uint64_t>(unique_id()), callback_type, interval_us);
+            return true;
+        }
+
         bool timer::request_finish() {
             if (!outstanding) {
                 return false;
