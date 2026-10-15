@@ -146,10 +146,12 @@ final class EKA2L1Bridge {
     // Same, from a .7z holding either a ROM/RPKG pair or an already-unpacked
     // device — see installDeviceWithArchivePath:isolateDrives:progress:cancelCheck:.
     nonisolated static func installDevice(archivePath: String, isolateDrives: Bool,
+                                          chooseVariant: (@Sendable ([String]) -> Int)? = nil,
                                           progress: (@Sendable (Double) -> Void)? = nil,
                                           cancelCheck: (@Sendable () -> Bool)? = nil) -> EKA2L1InstallResult {
         EKA2L1Emulator.shared().installDevice(archivePath: archivePath, isolateDrives: isolateDrives,
-                                              progress: progress, cancelCheck: cancelCheck)
+                                              chooseVariant: chooseVariant, progress: progress,
+                                              cancelCheck: cancelCheck)
     }
 
     // Same, from a Nokia firmware .vpl next to its .fpsx images. `chooseVariant`

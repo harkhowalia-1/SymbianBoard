@@ -31,6 +31,7 @@
 #include <common/buffer.h>
 #include <common/crypt.h>
 #include <common/cvt.h>
+#include <common/archive.h>
 #include <common/fileutils.h>
 #include <common/language.h>
 #include <common/log.h>
@@ -1557,11 +1558,45 @@ namespace eka2l1::ios {
                                       isolateDrives:(BOOL)isolateDrives
                                            progress:(void (^)(double))progress
                                         cancelCheck:(BOOL (^)(void))cancelCheck {
+    return [self installDeviceWithArchivePath:archivePath isolateDrives:isolateDrives chooseVariant:nil
+                                     progress:progress cancelCheck:cancelCheck];
+}
+
+- (EKA2L1InstallResult)installDeviceWithArchivePath:(NSString *)archivePath
+                                      isolateDrives:(BOOL)isolateDrives
+                                      chooseVariant:(NSInteger (^)(NSArray<NSString *> *))chooseVariant
+                                           progress:(void (^)(double))progress
+                                        cancelCheck:(BOOL (^)(void))cancelCheck {
     if (![NSFileManager.defaultManager fileExistsAtPath:archivePath]) {
         return EKA2L1InstallResultNotExist;
     }
 
     const std::string archive_std = archivePath.UTF8String;
+
+    // A Nokia firmware package (the .vpl and the .fpsx images it lists), as
+    // firmware downloads usually come zipped: unpack just that package's folder
+    // and hand it to the firmware installer.
+    std::vector<eka2l1::common::archive_entry_info> entries;
+    if (eka2l1::common::list_archive(archive_std, entries)) {
+        std::size_t vpl_index = entries.size();
+        std::size_t vpl_depth = SIZE_MAX;
+        for (std::size_t i = 0; i < entries.size(); i++) {
+            const std::string lowered = eka2l1::common::lowercase_string(entries[i].path);
+            if ((lowered.size() > 4) && (lowered.compare(lowered.size() - 4, 4, ".vpl") == 0)) {
+                const std::size_t depth = static_cast<std::size_t>(std::count(lowered.begin(), lowered.end(), '/'));
+                // Several packages (one per region, often in subfolders): take the top-level one.
+                if (depth < vpl_depth) {
+                    vpl_depth = depth;
+                    vpl_index = i;
+                }
+            }
+        }
+        if (vpl_index < entries.size()) {
+            return [self installFirmwareFromArchive:archive_std entries:entries vplIndex:vpl_index
+                                      isolateDrives:isolateDrives chooseVariant:chooseVariant
+                                           progress:progress cancelCheck:cancelCheck];
+        }
+    }
 
     return [self runDeviceInstall:^(eka2l1::device_manager *dvc, const std::string &rom_resident_path,
                                      const std::string &root_z_path, progress_changed_callback progress_cb,
@@ -1569,6 +1604,85 @@ namespace eka2l1::ios {
         return eka2l1::loader::install_archive(dvc, archive_std, rom_resident_path, root_z_path,
             isolateDrives == YES, progress_cb, cancel_cb);
     } progress:progress cancelCheck:cancelCheck];
+}
+
+- (EKA2L1InstallResult)installFirmwareFromArchive:(const std::string &)archivePath
+                                          entries:(const std::vector<eka2l1::common::archive_entry_info> &)entries
+                                         vplIndex:(std::size_t)vplIndex
+                                    isolateDrives:(BOOL)isolateDrives
+                                    chooseVariant:(NSInteger (^)(NSArray<NSString *> *))chooseVariant
+                                         progress:(void (^)(double))progress
+                                      cancelCheck:(BOOL (^)(void))cancelCheck {
+    if (!_state) {
+        return EKA2L1InstallResultGeneralFailure;
+    }
+
+    const std::string &vpl_entry = entries[vplIndex].path;
+    const std::size_t slash = vpl_entry.find_last_of('/');
+    const std::string package_folder = (slash == std::string::npos) ? std::string() : vpl_entry.substr(0, slash + 1);
+
+    // Unpack the package's own folder (not subfolders: those hold other regions' packages).
+    const std::string staging = eka2l1::add_path(_state->conf.storage, "roms/tempfirmware/");
+    eka2l1::common::delete_folder(staging);
+    eka2l1::common::create_directories(staging);
+
+    std::vector<std::string> destinations(entries.size());
+    for (std::size_t i = 0; i < entries.size(); i++) {
+        const std::string &path = entries[i].path;
+        if (path.compare(0, package_folder.size(), package_folder) != 0) {
+            continue;
+        }
+        const std::string rest = path.substr(package_folder.size());
+        if (rest.empty() || (rest.find('/') != std::string::npos)) {
+            continue;
+        }
+        destinations[i] = eka2l1::add_path(staging, rest);
+    }
+
+    // Unpacking takes the first half of the bar, installing the second.
+    std::size_t next_index = 0;
+    progress_changed_callback unpack_cb = nullptr;
+    if (progress) {
+        unpack_cb = [progress](const std::size_t done, const std::size_t total) {
+            if (total) {
+                progress(0.5 * static_cast<double>(done) / static_cast<double>(total));
+            }
+        };
+    }
+    cancel_requested_callback cancel_cb = nullptr;
+    if (cancelCheck) {
+        cancel_cb = [cancelCheck]() -> bool { return cancelCheck() == YES; };
+    }
+
+    const bool unpacked = eka2l1::common::extract_archive(archivePath,
+        [&](const eka2l1::common::archive_entry_info &) -> std::string {
+            const std::size_t index = next_index++;
+            return (index < destinations.size()) ? destinations[index] : std::string();
+        },
+        unpack_cb, cancel_cb);
+
+    if (!unpacked) {
+        eka2l1::common::delete_folder(staging);
+        if (cancelCheck && cancelCheck()) {
+            return EKA2L1InstallResultCancelled;
+        }
+        return EKA2L1InstallResultArchiveCorrupt;
+    }
+
+    const std::string vpl_name = (slash == std::string::npos) ? vpl_entry : vpl_entry.substr(slash + 1);
+    NSString *vplPath = [NSString stringWithUTF8String:eka2l1::add_path(staging, vpl_name).c_str()];
+
+    const EKA2L1InstallResult result = [self installDeviceWithFirmwarePath:vplPath isolateDrives:isolateDrives
+        chooseVariant:chooseVariant
+        progress:^(double fraction) {
+            if (progress) {
+                progress(0.5 + fraction * 0.5);
+            }
+        }
+        cancelCheck:cancelCheck];
+
+    eka2l1::common::delete_folder(staging);
+    return result;
 }
 
 - (EKA2L1InstallResult)installDeviceWithFirmwarePath:(NSString *)vplPath

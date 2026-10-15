@@ -1,14 +1,17 @@
 {
   "fill" : {
-    "automatic-gradient" : "display-p3:0.94424,0.96293,0.96293,1.00000",
+    "linear-gradient" : [
+      "srgb:0.08235,0.13333,0.36863,1.00000",
+      "srgb:0.05490,0.61176,0.60392,1.00000"
+    ],
     "orientation" : {
       "start" : {
-        "x" : 0.5,
+        "x" : 0.2,
         "y" : 0
       },
       "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
+        "x" : 0.8,
+        "y" : 1
       }
     }
   },
@@ -17,24 +20,10 @@
       "layers" : [
         {
           "glass" : true,
-          "image-name" : "duck.png",
-          "name" : "duck",
+          "image-name" : "grid.png",
+          "name" : "menu-grid",
           "position" : {
-            "scale" : 1.35,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "blend-mode" : "normal",
-          "glass" : false,
-          "hidden" : false,
-          "image-name" : "shadow.png",
-          "name" : "shadow",
-          "position" : {
-            "scale" : 1.35,
+            "scale" : 1,
             "translation-in-points" : [
               0,
               0
@@ -47,7 +36,7 @@
         "opacity" : 0.5
       },
       "translucency" : {
-        "enabled" : true,
+        "enabled" : false,
         "value" : 0.5
       }
     }

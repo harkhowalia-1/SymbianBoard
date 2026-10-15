@@ -161,6 +161,16 @@ typedef NS_ENUM(NSInteger, EKA2L1GuestFileEvent) {
                                         cancelCheck:(nullable BOOL (^)(void))cancelCheck
     NS_SWIFT_NAME(installDevice(archivePath:isolateDrives:progress:cancelCheck:));
 
+// Same, and also takes zipped Nokia firmware: when the archive holds a .vpl,
+// that package's folder is unpacked and installed like installDeviceWithFirmwarePath:
+// (the top-level package wins when there are several). `chooseVariant` as there.
+- (EKA2L1InstallResult)installDeviceWithArchivePath:(NSString *)archivePath
+                                      isolateDrives:(BOOL)isolateDrives
+                                      chooseVariant:(nullable NSInteger (^)(NSArray<NSString *> *variants))chooseVariant
+                                           progress:(nullable void (^)(double fraction))progress
+                                        cancelCheck:(nullable BOOL (^)(void))cancelCheck
+    NS_SWIFT_NAME(installDevice(archivePath:isolateDrives:chooseVariant:progress:cancelCheck:));
+
 // Install a device straight from a Nokia firmware package: a .vpl file sitting
 // next to the .fpsx images it lists (core, rofs2, rofs3, uda). A firmware may
 // ship several language variants; `chooseVariant` is called on the install

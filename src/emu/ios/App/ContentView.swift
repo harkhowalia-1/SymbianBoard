@@ -949,6 +949,7 @@ private let rpkgTypes: [UTType] = importTypes(extension: "rpkg", declaredAs: "co
 // and everything that reads its archives use, so we import that one rather than
 // minting a com.eka2l1.* type nothing else would recognise.
 private let archiveTypes: [UTType] = importTypes(extension: "7z", declaredAs: "org.7-zip.7-zip-archive")
+private let zipTypes: [UTType] = [.zip]
 private let rarTypes: [UTType] = importTypes(extension: "rar", declaredAs: "com.rarlab.rar-archive")
 
 // Shared between the main queue (which sets it from the Stop button) and the
@@ -1058,7 +1059,7 @@ struct ImportDeviceView: View {
                 Section {
                     Picker("import.source", selection: $source) {
                         Text("import.source.looseFiles").tag(SourceKind.looseFiles)
-                        Text("import.source.archive").tag(SourceKind.archive)
+                        Text("Zip or 7z archive").tag(SourceKind.archive)
                         Text("Nokia firmware (.vpl)").tag(SourceKind.firmware)
                     }
                     .pickerStyle(.menu)
@@ -1094,7 +1095,7 @@ struct ImportDeviceView: View {
                     if source == .looseFiles {
                         Text("import.recommendedDevices")
                     } else if source == .archive {
-                        Text("import.archiveHint")
+                        Text("Choose a .zip or .7z as you downloaded it: a Nokia firmware package (.vpl with its .fpsx files, e.g. a Nokia N8 RM-596 zip), a ROM with its RPKG, or a device already unpacked into the emulator's folder layout. Unpacking a firmware zip needs about as much free space as the zip's contents.")
                     } else {
                         Text("Choose the unzipped firmware folder that holds the .vpl file and its .fpsx images (core, rofs2, rofs3, uda), for example a Nokia N8 RM-596 package.")
                     }
@@ -1195,7 +1196,7 @@ struct ImportDeviceView: View {
         switch target {
         case .rom: return romTypes
         case .rpkg: return rpkgTypes
-        case .archive: return archiveTypes
+        case .archive: return zipTypes + archiveTypes
         case .firmwareFolder: return [.folder]
         }
     }
@@ -1220,7 +1221,8 @@ struct ImportDeviceView: View {
         // types everything as generic data can slip past. The extension is the
         // only thing the installers key off, so hold the line here too rather
         // than feeding a ROM to the RPKG reader (and vice versa).
-        guard url.pathExtension.caseInsensitiveCompare(kind) == .orderedSame else {
+        let accepted = target == .archive ? ["7z", "zip"] : [kind]
+        guard accepted.contains(where: { url.pathExtension.caseInsensitiveCompare($0) == .orderedSame }) else {
             errorMessage = String(localized: "import.error.wrongExtension \(kind.uppercased())")
             return
         }
@@ -1279,6 +1281,17 @@ struct ImportDeviceView: View {
         let run: @Sendable (@escaping @Sendable (Double) -> Void,
                             @escaping @Sendable () -> Bool) -> EKA2L1InstallResult
 
+        // The firmware installer asks for a variant on its own thread; park it
+        // until the user answers the dialog on the main one.
+        let choose: @Sendable ([String]) -> Int = { names in
+            if names.count <= 1 { return names.isEmpty ? -1 : 0 }
+            let answer = InstallVariantAnswer()
+            DispatchQueue.main.async {
+                variantRequest = VariantRequest(names: names, answer: answer)
+            }
+            return answer.wait()
+        }
+
         switch source {
         case .looseFiles:
             guard let rom else { return }
@@ -1296,23 +1309,13 @@ struct ImportDeviceView: View {
             urls = [archive.url]
             run = { progress, cancel in
                 EKA2L1Bridge.installDevice(archivePath: archivePath, isolateDrives: isolate,
-                                           progress: progress, cancelCheck: cancel)
+                                           chooseVariant: choose, progress: progress, cancelCheck: cancel)
             }
 
         case .firmware:
             guard let firmwareFolder, !selectedVPL.isEmpty else { return }
             let vplPath = firmwareFolder.url.appendingPathComponent(selectedVPL).path
             urls = [firmwareFolder.url]
-            // The installer asks for a variant on its own thread; park it until
-            // the user answers the dialog on the main one.
-            let choose: @Sendable ([String]) -> Int = { names in
-                if names.count <= 1 { return names.isEmpty ? -1 : 0 }
-                let answer = InstallVariantAnswer()
-                DispatchQueue.main.async {
-                    variantRequest = VariantRequest(names: names, answer: answer)
-                }
-                return answer.wait()
-            }
             run = { progress, cancel in
                 EKA2L1Bridge.installDevice(firmwarePath: vplPath, isolateDrives: isolate,
                                            chooseVariant: choose, progress: progress, cancelCheck: cancel)
