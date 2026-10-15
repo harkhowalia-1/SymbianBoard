@@ -7,6 +7,9 @@ import UIKit
 // join it only in the phone's calling apps, and a small ⋯ carries the
 // emulator's own options.
 struct AppControlBar: View {
+    // The strip's height; the emulator screen stays above it.
+    static let height: CGFloat = 58
+
     let appUID: UInt32
     let actions: KeypadMenuActions
     let goHome: () -> Void
@@ -43,7 +46,7 @@ struct AppControlBar: View {
                 .padding(.trailing, 6)
         }
         .padding(.horizontal, 12)
-        .frame(height: 58)
+        .frame(height: Self.height)
         .background(phoneBody)
     }
 

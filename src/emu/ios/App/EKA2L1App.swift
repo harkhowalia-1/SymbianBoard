@@ -40,6 +40,7 @@ private struct MainSceneContent: View {
 
     var body: some View {
         ContentView()
+        .background(MacWindowShaper())
         .onChange(of: scenePhase) { newPhase in
             switch newPhase {
             case .active:
@@ -64,4 +65,26 @@ private struct MainSceneContent: View {
             }
         }
     }
+}
+
+// On a Mac the app opens in a phone-shaped window (portrait, like the N8)
+// rather than the default iPad-sized landscape one, and can't be squeezed
+// smaller than a phone screen.
+private struct MacWindowShaper: UIViewRepresentable {
+    static var runsOnMac: Bool {
+        ProcessInfo.processInfo.isMacCatalystApp || ProcessInfo.processInfo.isiOSAppOnMac
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        guard Self.runsOnMac else { return view }
+        DispatchQueue.main.async {
+            guard let scene = view.window?.windowScene else { return }
+            scene.sizeRestrictions?.minimumSize = CGSize(width: 380, height: 700)
+            scene.requestGeometryUpdate(.Mac(systemFrame: CGRect(x: 160, y: 60, width: 440, height: 860)))
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }

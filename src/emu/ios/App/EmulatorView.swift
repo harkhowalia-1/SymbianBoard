@@ -169,6 +169,10 @@ struct EmulatorView: View {
                         }
                     }
                 )
+                // Keep the phone's screen above the N8 control strip, which
+                // would otherwise cover its softkeys in a wide window (iPad,
+                // Mac).
+                .padding(.bottom, isEditingLayout ? 0 : AppControlBar.height)
                 .ignoresSafeArea()
 
                 if showFPSOverlay && !isEditingLayout {
