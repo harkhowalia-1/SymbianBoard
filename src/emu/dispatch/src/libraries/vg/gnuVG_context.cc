@@ -17,7 +17,10 @@
  *
  */
 
+#include <cstddef>
+#include <cstring>
 #include <limits>
+#include <vector>
 #include <string.h>
 
 #include <dispatch/libraries/vg/consts.h>
@@ -27,6 +30,7 @@
 #include <dispatch/libraries/vg/gnuVG_emuutils.hh>
 #include <dispatch/libraries/egl/def.h>
 
+#include <common/algorithm.h>
 #include <system/epoc.h>
 #include <dispatch/dispatcher.h>
 
@@ -2218,9 +2222,30 @@ namespace gnuVG {
 			return;
 		}
 
-		std::size_t stride_selfcalc = calculate_image_data_stride(fmt, width);
-		std::size_t total_data_size = height * ((stride == 0) ? stride_selfcalc : stride);
-		std::size_t bytes_per_pixel = (stride_selfcalc / width);
+		if ((width <= 0) || (height <= 0)) {
+			return;
+		}
+
+		const std::size_t stride_selfcalc = calculate_image_data_stride(fmt, width);
+		std::vector<std::uint8_t> packed;
+
+		// A negative stride means the rows go backwards in memory (bottom-up
+		// bitmaps, as HuiVg uploads CFbsBitmap data). Repack them top-down.
+		if (stride < 0) {
+			packed.resize(stride_selfcalc * height);
+			const std::uint8_t *src = reinterpret_cast<const std::uint8_t*>(memory);
+
+			for (VGint row = 0; row < height; row++) {
+				std::memcpy(packed.data() + row * stride_selfcalc, src + static_cast<std::ptrdiff_t>(row) * stride,
+					stride_selfcalc);
+			}
+
+			memory = packed.data();
+			stride = 0;
+		}
+
+		const std::size_t total_data_size = height * ((stride == 0) ? stride_selfcalc : static_cast<std::size_t>(stride));
+		const std::size_t bytes_per_pixel = eka2l1::common::max<std::size_t>(stride_selfcalc / width, 1);
 
 		if ((stride % bytes_per_pixel) != 0) {
 			LOG_WARN(eka2l1::HLE_DISPATCHER, "Stride byte count is odd compare to pixel size! VG Image may contains distortion!");

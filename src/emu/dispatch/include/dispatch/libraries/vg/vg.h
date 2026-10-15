@@ -81,7 +81,7 @@ namespace eka2l1::dispatch {
 		VGbitfield capabilities);
 	BRIDGE_FUNC_LIBRARY(void, vg_destroy_path_emu, VGPath path);
 	BRIDGE_FUNC_LIBRARY(void, vg_clear_path_emu, VGPath path, VGbitfield capabilities);
-	//BRIDGE_FUNC_LIBRARY(void, vg_remove_path_capabilities_emu, VGPath path, VGbitfield capabilities);
+	BRIDGE_FUNC_LIBRARY(void, vg_remove_path_capabilities_emu, VGPath path, VGbitfield capabilities);
 	BRIDGE_FUNC_LIBRARY(VGbitfield, vg_get_path_capabilities_emu, VGPath path);
 	BRIDGE_FUNC_LIBRARY(void, vg_append_path_emu, VGPath dstPath, VGPath srcPath);
 	BRIDGE_FUNC_LIBRARY(void, vg_append_path_data_emu, VGPath path, VGint numSegments,

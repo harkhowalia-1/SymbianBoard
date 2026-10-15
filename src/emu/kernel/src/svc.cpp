@@ -1191,6 +1191,7 @@ namespace eka2l1::epoc {
 
         if (handle != kernel::INVALID_HANDLE) {
             LOG_TRACE(KERNEL, "Server {} created", server_name);
+            if (server_name.find("AppServer") != std::string::npos) LOG_WARN(KERNEL, "ALFDBG Server {} created by {}", server_name, kern->crr_thread()->name()); // ALFDBG
         }
 
         return handle;
@@ -1264,6 +1265,7 @@ namespace eka2l1::epoc {
 
         if (!server) {
             LOG_TRACE(KERNEL, "Create session to unexist server: {}", server_name);
+            if (server_name.find("AppServer") != std::string::npos) LOG_WARN(KERNEL, "ALFDBG session to missing server {} from {}", server_name, kern->crr_thread()->name()); // ALFDBG
             return epoc::error_not_found;
         }
 

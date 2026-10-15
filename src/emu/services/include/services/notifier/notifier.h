@@ -24,6 +24,9 @@
 #include <services/framework.h>
 #include <services/notifier/plugin.h>
 
+#include <map>
+#include <memory>
+
 namespace eka2l1 {
     enum notifier_opcode {
         notifier_notify,
@@ -52,6 +55,10 @@ namespace eka2l1 {
 
     struct notifier_client_session : public service::typical_session {
         std::shared_ptr<epoc::notify_info> pending_dialog_;
+
+        // Responses awaited from notifier plugins EKA2L1 doesn't have. They stay
+        // pending until the client cancels, so the client doesn't re-issue them in a loop.
+        std::map<epoc::uid, std::unique_ptr<service::ipc_context>> unanswerable_requests_;
 
         explicit notifier_client_session(service::typical_server *serv, const kernel::uid ss_id, epoc::version client_version);
 

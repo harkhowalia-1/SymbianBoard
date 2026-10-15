@@ -21,6 +21,9 @@
 
 #include <services/framework.h>
 
+#include <cstdint>
+#include <set>
+
 namespace eka2l1 {
     class alf_streamer_session : public service::typical_session {
         std::unique_ptr<service::ipc_context> pending_plugin_request_;
@@ -31,6 +34,17 @@ namespace eka2l1 {
     };
 
     class alf_streamer_server : public service::typical_server {
+        // Processes that attached alfclient.dll. The ROM's own Alf server thread
+        // ("alfredserver") is a system-wide singleton, so it runs in one of them.
+        std::set<std::uint64_t> alf_client_processes_;
+        std::uint64_t alf_host_process_ = 0;
+
+        // Alf control groups currently shown by clients (EAlfRosterShow - EAlfRosterHide).
+        std::int32_t shown_control_groups_ = 0;
+
+        void boot_alf_server_thread(kernel::process *pr);
+        void bring_alf_window_to_front(const bool front);
+
     public:
         explicit alf_streamer_server(system *sys);
         void connect(service::ipc_context &context) override;

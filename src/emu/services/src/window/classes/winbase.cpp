@@ -331,6 +331,7 @@ namespace eka2l1::epoc {
             priority = info->pri1;
             const int position = info->pri2;
 
+
             set_position(position);
             ctx.complete(epoc::error_none);
 

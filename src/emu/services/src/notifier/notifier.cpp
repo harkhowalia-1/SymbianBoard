@@ -75,9 +75,22 @@ namespace eka2l1 {
 
         epoc::notifier::plugin_base *plug = server<notifier_server>()->get_plugin(plugin_uid.value());
         if (!plug) {
-            LOG_ERROR(SERVICE_NOTIFIER, "Can't find the plugin with UID 0x{:X}. This is fine (but take note).", plugin_uid.value());
-            ctx->complete(epoc::error_none);
+            if (ctx->msg->function != notfiier_start_and_get_response) {
+                LOG_ERROR(SERVICE_NOTIFIER, "Can't find the plugin with UID 0x{:X}. This is fine (but take note).", plugin_uid.value());
+                ctx->complete(epoc::error_none);
+                return;
+            }
 
+            // Completing a request for a response right away makes clients that
+            // re-arm on completion spin forever. Hold it until RNotifier::CancelNotifier.
+            auto &pending = unanswerable_requests_[plugin_uid.value()];
+            if (pending) {
+                pending->complete(epoc::error_cancel);
+            } else {
+                LOG_WARN(SERVICE_NOTIFIER, "No plugin with UID 0x{:X}, leaving its response pending", plugin_uid.value());
+            }
+
+            pending = ctx->move_to_new();
             return;
         }
 
@@ -237,6 +250,12 @@ namespace eka2l1 {
 
         case notifier_cancel:
             if (const std::optional<epoc::uid> plugin_uid = ctx->get_argument_value<epoc::uid>(0)) {
+                auto pending = unanswerable_requests_.find(*plugin_uid);
+                if (pending != unanswerable_requests_.end()) {
+                    pending->second->complete(epoc::error_cancel);
+                    unanswerable_requests_.erase(pending);
+                }
+
                 if (epoc::notifier::plugin_base *plug = server<notifier_server>()->get_plugin(*plugin_uid)) {
                     plug->cancel();
                 }

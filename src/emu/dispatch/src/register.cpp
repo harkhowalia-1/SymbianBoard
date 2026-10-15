@@ -462,7 +462,7 @@ namespace eka2l1::dispatch {
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x1436, vg_create_path_emu, "vgCreatePath"),
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x1437, vg_destroy_path_emu, "vgDestroyPath"),
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x1438, vg_clear_path_emu, "vgClearPath"),
-        //BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x1439, vg_remove_path_capabilities_emu, "vgRemovePathCapabilities"),
+        BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x1439, vg_remove_path_capabilities_emu, "vgRemovePathCapabilities"),
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x143a, vg_get_path_capabilities_emu, "vgGetPathCapabilities"),
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x143b, vg_append_path_emu, "vgAppendPath"),
         BRIDGE_REGISTER_DISPATCHER_SYMBOL(0x143c, vg_append_path_data_emu, "vgAppendPathData"),

@@ -57,6 +57,13 @@ namespace eka2l1::dispatch {
         controller.push_egl_error(crr_thread->unique_id(), error);
     }
 
+    // Every EGL call except eglGetError sets the thread's error, to EGL_SUCCESS when
+    // it succeeds. Clients such as HuiVg check eglGetError() right after a call, so
+    // a stale error from an earlier failed call must not survive.
+    static void egl_clear_error(system *sys) {
+        egl_push_error(sys, EGL_SUCCESS);
+    }
+
     BRIDGE_FUNC_LIBRARY(std::int32_t, egl_get_error) {
         dispatcher *dp = sys->get_dispatcher();
         kernel_system *kern = sys->get_kernel_system();
@@ -67,6 +74,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_display, egl_get_display_emu, std::int32_t display_index) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
 
         if (display_index == 0) {
@@ -82,6 +91,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_initialize_emu, egl_display display, std::int32_t *major, std::int32_t *minor) {
+        egl_clear_error(sys);
+
         if (major) {
             *major = EGL_MAJOR_VERSION_EMU;
         }
@@ -94,6 +105,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_terminate_emu, egl_display display) {
+        egl_clear_error(sys);
+
         // Every resource this display owns is released with the objects that hold
         // it, so there is nothing left to tear down here.
         return EGL_TRUE;
@@ -101,6 +114,8 @@ namespace eka2l1::dispatch {
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_get_configs_emu, egl_display display, egl_config *configs, std::int32_t config_array_size, std::int32_t *config_total_size) {        
         if (!config_total_size) {
+        egl_clear_error(sys);
+
             egl_push_error(sys, EGL_BAD_PARAMETER_EMU);
             return EGL_FALSE;
         }
@@ -118,6 +133,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_choose_config_emu, egl_display display, std::int32_t *attrib_lists, egl_config *configs, std::int32_t config_array_size, std::int32_t *num_config_choosen) {
+        egl_clear_error(sys);
+
         if (!attrib_lists) {
             egl_push_error(sys, EGL_BAD_ATTRIBUTE_EMU);
             return EGL_FALSE;
@@ -215,6 +232,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_surface_handle, egl_create_window_surface_emu, egl_display display, std::uint32_t choosen_config_value, utils::window_client_interface *win, std::int32_t *additional_attribs) {
+        egl_clear_error(sys);
+
         drivers::graphics_driver *driver = sys->get_graphics_driver();
         kernel_system *kern = sys->get_kernel_system();
         dispatcher *dp = sys->get_dispatcher();
@@ -275,6 +294,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_surface_handle, egl_create_pbuffer_surface_emu, egl_display display, std::uint32_t choosen_config_value, std::int32_t *additional_attribs) {
+        egl_clear_error(sys);
+
         if (!additional_attribs) {
             // I... Need .. To .. know .. the ... width... and ... weight .. of the surface !!!
             // ps: (given up on the three dots at the end)
@@ -346,6 +367,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_context_handle, egl_create_context_emu, egl_display display, std::uint32_t choosen_config_value, egl_context_handle shared_context, std::int32_t *additional_attribs_) {
+        egl_clear_error(sys);
+
         if (shared_context) {
             LOG_ERROR(HLE_DISPATCHER, "Shared context is not yet supported!");
             egl_push_error(sys, EGL_BAD_PARAMETER_EMU);
@@ -409,6 +432,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_make_current_emu, egl_display display, egl_surface_handle read_surface, egl_surface_handle write_surface, egl_context_handle context) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
         kernel_system *kern = sys->get_kernel_system();
@@ -467,6 +492,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_destroy_context_emu, egl_display display, egl_context_handle handle) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
         
@@ -475,6 +502,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_destroy_surface_emu, egl_display display, egl_surface_handle handle) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -483,6 +512,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_swap_buffers_emu, egl_display display, egl_surface_handle handle) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -495,6 +526,12 @@ namespace eka2l1::dispatch {
         drivers::graphics_driver *drv = sys->get_graphics_driver();
 
         egl_context *ctx = surface->bounded_context_;
+        { // ALFDBG
+            static int alfdbg_swaps = 0;
+            if ((sys->get_kernel_system()->crr_thread()->name() == "alfredserver") && ((alfdbg_swaps++ % 30) == 0)) {
+                LOG_WARN(HLE_DISPATCHER, "ALFDBG swap #{} window={} ctx={}", alfdbg_swaps, surface->backed_window_ != nullptr, ctx != nullptr);
+            }
+        }
         if (surface->backed_window_ && ctx) {
             surface->scale(ctx, drv);
         }
@@ -516,6 +553,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_query_surface_emu, egl_display display, egl_surface_handle handle, std::uint32_t attribute, std::int32_t *value) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -550,15 +589,21 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(std::int32_t, egl_wait_native_emu, std::int32_t engine) {
+        egl_clear_error(sys);
+
         // Nothing
         return EGL_TRUE;
     }
     
     BRIDGE_FUNC_LIBRARY(std::int32_t, egl_wait_gl_emu) {
+        egl_clear_error(sys);
+
         return EGL_TRUE;
     }
     
     BRIDGE_FUNC_LIBRARY(address, egl_query_string_emu, egl_display display, std::uint32_t param) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -575,6 +620,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_get_config_attrib_emu, egl_display display, std::uint32_t config, std::uint32_t attribute, std::uint32_t *value) {
+        egl_clear_error(sys);
+
         if (!value) {
             egl_push_error(sys, EGL_BAD_PARAMETER_EMU);
             return 0;
@@ -693,6 +740,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(egl_context_handle, egl_get_current_context_emu) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -705,6 +754,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_display, egl_get_current_display_emu) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -721,6 +772,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_surface_handle, egl_get_current_surface_emu, std::uint32_t which) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -742,6 +795,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_copy_buffers_emu, egl_display display, egl_surface_handle handle, void *native_pixmap) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
@@ -837,6 +892,8 @@ namespace eka2l1::dispatch {
     }
     
     BRIDGE_FUNC_LIBRARY(address, egl_get_proc_address_emu, const char *procname) {
+        egl_clear_error(sys);
+
         // Safe check: Make sure it's not searching for anything else other than GL and EGL
         if (!procname) {
             return 0;
@@ -851,6 +908,8 @@ namespace eka2l1::dispatch {
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_query_profiling_data_nok_emu, egl_display display,
         std::uint32_t query_bits, std::int32_t *data, std::int32_t data_size, std::int32_t *data_count) {
+        egl_clear_error(sys);
+
         if (!data_count || (query_bits & ~(EGL_PROF_QUERY_GLOBAL_BIT_NOK_EMU |
             EGL_PROF_QUERY_MEMORY_USAGE_BIT_NOK_EMU)) != 0) {
             egl_push_error(sys, EGL_BAD_PARAMETER_EMU);
@@ -884,6 +943,8 @@ namespace eka2l1::dispatch {
     }
 
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_bind_api_emu, const std::uint32_t bind_api) {
+        egl_clear_error(sys);
+
         /*switch (bind_api) {
         case EGL_OPENGL_API_EMU:
             LOG_ERROR(HLE_DISPATCHER, "OpenGL API is not supported in the emulator");
@@ -905,6 +966,8 @@ namespace eka2l1::dispatch {
     
     BRIDGE_FUNC_LIBRARY(egl_boolean, egl_surface_attrib_emu, egl_display display_h, egl_surface_handle surface_h,
         std::int32_t attribute, std::int32_t value) {
+        egl_clear_error(sys);
+
         dispatcher *dp = sys->get_dispatcher();
         dispatch::egl_controller &controller = dp->get_egl_controller();
 
