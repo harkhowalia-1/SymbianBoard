@@ -143,11 +143,12 @@
   <div class="wrap hero-grid">
     <div>
       <div class="brand"><img src="assets/icon.png" alt=""><span>SymbianBoard</span></div>
-      <h1>Symbian apps on your iPhone.</h1>
+      <h1>Symbian apps on your iPhone and Mac.</h1>
       <p class="lede">The phone's real apps — Calculator, Gallery, Notes, games and anything you install —
         running in an emulated Nokia, on a home screen that behaves like iOS.</p>
       <div class="actions">
         <a class="btn primary" id="hero-download" href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest">Download for iPhone</a>
+        <a class="btn ghost" id="hero-mac" href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest/download/SymbianBoard-mac.dmg">Download for Mac</a>
         <a class="btn ghost" href="https://github.com/harkhowalia-1/SymbianBoard">Source on GitHub</a>
       </div>
       <div class="release-meta" id="release-meta">Latest build on GitHub Releases.</div>
@@ -170,6 +171,7 @@
         <div class="card"><h3>The N8's Menu key</h3><p>The silver <span class="n8key" aria-hidden="true"></span> key from the N8's body sits under every app. Call keys appear in calling apps.</p></div>
         <div class="card"><h3>Install with +</h3><p>Pick a .sis or .sisx package and it installs onto the phone, icon and all.</p></div>
         <div class="card"><h3>Your photos and music</h3><p>Your newest photos show up in the N8's own Gallery; songs on the iPhone are copied for the Music player.</p></div>
+        <div class="card"><h3>On your Mac too</h3><p>The same app runs on Apple silicon Macs in a phone-shaped window, with the JIT on and no setup.</p></div>
         <div class="card"><h3>Shortcuts</h3><p>Add any Symbian app to the iPhone Home Screen, run it from Shortcuts, or ask Siri.</p></div>
       </div>
     </div>
@@ -194,10 +196,10 @@
           <a class="btn secondary" href="sidestore://source?url=https://harkhowalia-1.github.io/SymbianBoard/altstore.json">Add to SideStore</a>
         </div>
         <div class="card dl">
-          <span class="tag">Coming</span>
-          <h3>Mac</h3>
-          <p class="sub" style="margin:0">A native Mac version with launchers in Applications is in progress.</p>
-          <a class="btn secondary" aria-disabled="true" href="#">Not available yet</a>
+          <span class="tag ok">JIT · Apple silicon</span>
+          <h3>Mac — DMG</h3>
+          <p class="sub" style="margin:0">macOS 14 or later on an M-series Mac. Drag SymbianBoard to Applications.</p>
+          <a class="btn" id="dmg-link" href="https://github.com/harkhowalia-1/SymbianBoard/releases/latest/download/SymbianBoard-mac.dmg">Download DMG</a>
         </div>
       </div>
       <div class="note"><strong>Firmware is not included.</strong> Nokia's firmware is copyrighted, so SymbianBoard ships without it.
@@ -215,19 +217,27 @@
         <li>Open SymbianBoard and install your device's firmware from its downloaded .zip.</li>
         <li>Tap <b>+</b> to add Symbian apps (.sis / .sisx), then open them from the home screen.</li>
       </ol>
+      <h3 style="margin-top:28px">On a Mac</h3>
+      <ol class="steps">
+        <li>Open the DMG and drag SymbianBoard to Applications.</li>
+        <li>The build isn't notarized yet, so the first time macOS blocks it: open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>.</li>
+        <li>Install your device's firmware from its .zip, then add apps with <b>+</b>. JIT is always on — no enabler needed.</li>
+      </ol>
     </div>
   </section>
 
   <section id="screenshots">
     <div class="wrap">
       <h2>Screenshots</h2>
-      <p class="sub">Nokia N8 firmware, iPhone 18 Pro simulator.</p>
+      <p class="sub">Nokia N8 firmware, iPhone 18 Pro simulator and macOS.</p>
       <div class="shots">
         <figure><img src="assets/home-iphone.jpg" alt="iPhone-style home screen" loading="lazy"><figcaption>Home screen</figcaption></figure>
         <figure><img src="assets/long-press-menu.jpg" alt="Long-press menu on an app icon" loading="lazy"><figcaption>Long-press</figcaption></figure>
         <figure><img src="assets/app-calculator.jpg" alt="N8 Calculator running" loading="lazy"><figcaption>N8 Calculator</figcaption></figure>
         <figure><img src="assets/gallery-iphone-photos.jpg" alt="N8 Gallery with iPhone photos" loading="lazy"><figcaption>Gallery + iPhone photos</figcaption></figure>
         <figure><img src="assets/home-symbian.jpg" alt="Symbian^3-style Menu" loading="lazy"><figcaption>Symbian Menu mode</figcaption></figure>
+        <figure><img src="assets/mac-home.jpg" alt="SymbianBoard home screen in a Mac window" loading="lazy"><figcaption>On the Mac</figcaption></figure>
+        <figure><img src="assets/mac-calculator.jpg" alt="N8 Calculator in a Mac window" loading="lazy"><figcaption>N8 Calculator on the Mac</figcaption></figure>
       </div>
     </div>
   </section>
@@ -235,14 +245,15 @@
   <section id="status">
     <div class="wrap">
       <h2>Status</h2>
-      <p class="sub">Early. Tested in the iOS simulator; real iPhones next.</p>
+      <p class="sub">Early. Tested in the iOS simulator and on an Apple silicon Mac; real iPhones next.</p>
       <table>
         <thead><tr><th>Area</th><th>State</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>Home screens, folders, jiggle mode</td><td class="yes">Works</td><td>iPhone and Symbian styles</td></tr>
           <tr><td>Calculator, Files, Notes</td><td class="yes">Works</td><td>Apps resume instantly from the home screen</td></tr>
           <tr><td>Gallery with iPhone photos</td><td class="yes">Works</td><td>Grid and thumbnails; opening one photo still crashes</td></tr>
-          <tr><td>Music player</td><td class="no">Not yet</td><td>Quits on launch; fix in progress</td></tr>
+          <tr><td>Music player</td><td class="yes">Works</td><td>Finds and lists songs copied from the iPhone</td></tr>
+          <tr><td>Mac (Apple silicon)</td><td class="yes">Works</td><td>Home screen and apps with the JIT; Intel Macs not supported</td></tr>
           <tr><td>Real iPhone hardware</td><td>Untested</td><td>Feedback welcome in Issues</td></tr>
         </tbody>
       </table>
@@ -268,6 +279,13 @@
       const date = new Date(rel.published_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
       const meta = document.getElementById("release-meta");
       meta.textContent = `Latest: ${rel.name || rel.tag_name} · ${date}`;
+      const dmg = (rel.assets || []).find(a => a.name.endsWith(".dmg"));
+      if (dmg) {
+        const link = document.getElementById("dmg-link");
+        link.href = dmg.browser_download_url;
+        link.textContent = `Download DMG (${(dmg.size / 1048576).toFixed(0)} MB)`;
+        document.getElementById("hero-mac").href = dmg.browser_download_url;
+      }
       const ipa = (rel.assets || []).find(a => a.name.endsWith(".ipa"));
       if (ipa) {
         const mb = (ipa.size / 1048576).toFixed(0);

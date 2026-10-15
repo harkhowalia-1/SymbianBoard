@@ -41,8 +41,23 @@ while IFS= read -r -d '' file; do
     fi
 done < <(find "${APP}" -type f \( -perm -u+x -o -name '*.dylib' \) -not -path '*/BundledDevice/*' -print0)
 
+echo "==> macOS bundle layout"
+# Contents/{Info.plist,MacOS,Resources}, which LaunchServices needs to see
+# the app's URL scheme. Bundle APIs find the resources either way.
+EXE="$(plutil -extract CFBundleExecutable raw "${APP}/Info.plist")"
+FLAT="${WORK}/flat.app"
+mv "${APP}" "${FLAT}"
+rm -rf "${FLAT}/_CodeSignature" "${FLAT}/embedded.mobileprovision"
+mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+mv "${FLAT}/Info.plist" "${APP}/Contents/Info.plist"
+mv "${FLAT}/${EXE}" "${APP}/Contents/MacOS/${EXE}"
+if [ -d "${FLAT}/Frameworks" ]; then mv "${FLAT}/Frameworks" "${APP}/Contents/Frameworks"; fi
+find "${FLAT}" -mindepth 1 -maxdepth 1 -exec mv {} "${APP}/Contents/Resources/" \;
+rmdir "${FLAT}"
+printf 'APPL????' > "${APP}/Contents/PkgInfo"
+
 echo "==> Info.plist and icon"
-PLIST="${APP}/Info.plist"
+PLIST="${APP}/Contents/Info.plist"
 plutil -remove LSRequiresIPhoneOS "${PLIST}" 2>/dev/null || true
 plutil -remove UIRequiredDeviceCapabilities "${PLIST}" 2>/dev/null || true
 plutil -replace CFBundleSupportedPlatforms -json '["MacOSX"]' "${PLIST}"
@@ -58,7 +73,7 @@ for size in 16 32 128 256 512; do
     sips -z $((size * 2)) $((size * 2)) "${ROOT_DIR}/docs/assets/icon-mac.png" \
         --out "${ICONSET}/icon_${size}x${size}@2x.png" >/dev/null
 done
-iconutil -c icns "${ICONSET}" -o "${APP}/AppIcon.icns"
+iconutil -c icns "${ICONSET}" -o "${APP}/Contents/Resources/AppIcon.icns"
 
 echo "==> Signing (ad-hoc, App Sandbox)"
 ENT="${WORK}/mac.entitlements"
@@ -78,8 +93,6 @@ cat > "${ENT}" <<'EOF'
 </dict>
 </plist>
 EOF
-find "${APP}" -name '_CodeSignature' -type d -prune -exec rm -rf {} +
-rm -f "${APP}/embedded.mobileprovision"
 # Inner code first, then the app with its entitlements.
 find "${APP}" \( -name '*.dylib' -o -name '*.framework' -o -name '*.appex' \) -prune -print0 |
     xargs -0 -I{} codesign --force --sign - {} 2>/dev/null || true

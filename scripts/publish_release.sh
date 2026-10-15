@@ -6,8 +6,9 @@
 #
 # Builds the public sideload IPA (dynarmic JIT in, firmware OUT) from the
 # committed HEAD in a separate release checkout, so uncommitted work in this
-# folder never ships. Then it creates the GitHub release v<version> with
-# SymbianBoard.ipa attached, and refreshes docs/altstore.json (the AltStore /
+# folder never ships, and the Mac DMG from it (scripts/package_mac.sh). Then
+# it creates the GitHub release v<version> with SymbianBoard.ipa and
+# SymbianBoard-mac.dmg attached, and refreshes docs/altstore.json (the AltStore /
 # SideStore source the website links to) and pushes it.
 #
 # Bump CFBundleShortVersionString / CFBundleVersion in
@@ -66,8 +67,12 @@ if unzip -l "${IPA}" | grep -q 'BundledDevice/'; then
     exit 2
 fi
 
+echo "==> Packaging the Mac DMG"
+DMG="${STAGE}/SymbianBoard-mac.dmg"
+scripts/package_mac.sh "${IPA}" "${DMG}"
+
 echo "==> Creating release ${TAG}"
-gh release create "${TAG}" "${IPA}" --repo "${REPO}" --target "${COMMIT}" \
+gh release create "${TAG}" "${IPA}" "${DMG}" --repo "${REPO}" --target "${COMMIT}" \
     --title "SymbianBoard ${VERSION}" --notes-file "${NOTES}"
 
 SIZE="$(stat -f %z "${IPA}")"

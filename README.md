@@ -1,6 +1,6 @@
 <h1 align="center">SymbianBoard</h1>
 
-<p align="center"><b>Symbian apps on your iPhone, on a home screen that feels like iOS.</b><br>
+<p align="center"><b>Symbian apps on your iPhone and Mac, on a home screen that feels like iOS.</b><br>
 Built on the <a href="https://github.com/EKA2L1/EKA2L1">EKA2L1</a> Symbian emulator.</p>
 
 <p align="center">
@@ -38,6 +38,8 @@ straight from their icons, keep running when you go home, and come back instantl
 - **Your iPhone's photos and music on the phone** — your newest photos appear in the
   N8's own Gallery; songs stored on the iPhone are copied for the Music player; pictures
   Symbian apps save go to your iPhone Photos.
+- **On the Mac too** — the same app runs on Apple silicon Macs in a phone-shaped window,
+  with the JIT always on.
 - **Fast** — apps stay running behind the home screen; the dynarmic JIT is built into the
   sideload version.
 - **Install firmware straight from a download** — pick the firmware `.zip` (or `.7z`) as you
@@ -50,7 +52,7 @@ straight from their icons, keep running when you go home, and come back instantl
 | --- | --- | --- |
 | **iOS sideload IPA** | ✅ (needs a JIT enabler at run time) | [Latest release](https://github.com/harkhowalia-1/SymbianBoard/releases/latest) |
 | App Store / TestFlight | ❌ (Apple doesn't allow JIT) | Not published yet |
-| Mac | — | In progress |
+| **Mac DMG** (Apple silicon, macOS 14+) | ✅ always on | [Latest release](https://github.com/harkhowalia-1/SymbianBoard/releases/latest) |
 
 1. Install the IPA with [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or
    [Sideloadly](https://sideloadly.io).
@@ -61,13 +63,17 @@ straight from their icons, keep running when you go home, and come back instantl
    firmware zip (or choose **Nokia firmware (.vpl)** for an unzipped folder). Use firmware
    from a phone you own.
 
+**On a Mac:** open the DMG and drag SymbianBoard to Applications. It isn't notarized yet, so
+the first launch is blocked: open **System Settings → Privacy & Security** and click
+**Open Anyway**. Then install your firmware as above.
+
 > **Firmware is not included.** Nokia's firmware is copyrighted, so public builds ship
 > without it. Personal builds can bundle a device you own for a zero-setup first launch
 > (see below) — don't publish those.
 
 ## What works
 
-Tested in the iOS simulator with a Nokia N8 (RM-596, Symbian^3) firmware.
+Tested in the iOS simulator and on an Apple silicon Mac with a Nokia N8 (RM-596, Symbian^3) firmware.
 
 | | Status |
 | --- | --- |
@@ -75,7 +81,8 @@ Tested in the iOS simulator with a Nokia N8 (RM-596, Symbian^3) firmware.
 | Calculator, Files, Notes and other simple apps | ✅ |
 | Gallery listing iPhone photos (N8 harvester + thumbnails) | ✅ |
 | Opening a single photo full screen in Gallery | ❌ crashes (being fixed) |
-| Music player | ❌ quits on launch (being fixed) |
+| Music player (songs copied from the iPhone) | ✅ |
+| Mac (Apple silicon) | ✅ home screen and apps, JIT on |
 | Clock | ❌ quits on launch |
 | Real iPhone hardware | Not tested yet |
 
@@ -92,7 +99,12 @@ cd SymbianBoard
 EKA2L1_IOS_CONFIGURATION=Release scripts/build_ios.sh simulator   # iOS simulator
 EKA2L1_IOS_CONFIGURATION=Release scripts/build_ios.sh ipa         # sideload IPA with JIT
 EKA2L1_IOS_DEVELOPMENT_TEAM=<team> scripts/build_ios.sh archive  # App Store build (no JIT)
+scripts/package_mac.sh build/SymbianBoard-sideload.ipa SymbianBoard-mac.dmg  # Mac DMG
 ```
+
+The Mac app is the arm64 iOS build re-tagged as Mac Catalyst and ad-hoc signed into the
+App Sandbox; nothing is recompiled. Its data lives in
+`~/Library/Containers/com.harkhowalia.symbianboard`.
 
 **Zero-setup personal builds:** install a device once (in the simulator or on a phone),
 then copy its `data/drives/z/<code>`, `data/drives/c`, `data/roms/<code>` and
