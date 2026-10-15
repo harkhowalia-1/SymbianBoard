@@ -242,6 +242,11 @@ if (SYMBIANBOARD_BUNDLED_DEVICE_DIR AND EXISTS "${SYMBIANBOARD_BUNDLED_DEVICE_DI
         COMMENT "Bundling pre-installed device from ${SYMBIANBOARD_BUNDLED_DEVICE_DIR}")
     message(STATUS "SymbianBoard: bundling pre-installed device from ${SYMBIANBOARD_BUNDLED_DEVICE_DIR}")
 else()
+    # Remove a device an earlier personal build left in the build folder:
+    # Xcode doesn't clear stale bundle contents between builds.
+    add_custom_command(TARGET ${EKA2L1_IOS_APP} POST_BUILD
+        COMMAND rm -rf "$<TARGET_BUNDLE_CONTENT_DIR:${EKA2L1_IOS_APP}>/BundledDevice"
+        COMMENT "Making sure no pre-installed device is bundled")
     message(STATUS "SymbianBoard: no pre-installed device bundled")
 endif()
 

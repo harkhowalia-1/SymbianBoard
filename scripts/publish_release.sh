@@ -60,8 +60,11 @@ STAGE="$(mktemp -d -t symbianboard-release)"
 IPA="${STAGE}/SymbianBoard.ipa"
 cp "${RELEASE_DIR}/build/SymbianBoard-sideload.ipa" "${IPA}"
 
-# Never publish Nokia firmware.
-if unzip -l "${IPA}" | grep -q 'BundledDevice/'; then
+# Never publish Nokia firmware. (List into a variable first: with pipefail,
+# `unzip | grep -q` fails on SIGPIPE when grep stops early, and the check
+# would never fire.)
+LISTING="$(unzip -Z1 "${IPA}")"
+if grep -qiE 'BundledDevice/|\.(fpsx|vpl|rom|rpkg)$' <<<"${LISTING}"; then
     echo "The IPA contains a bundled device (firmware). Refusing to publish." >&2
     rm -rf "${STAGE}"
     exit 2
