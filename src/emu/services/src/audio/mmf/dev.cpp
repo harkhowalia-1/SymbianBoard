@@ -649,7 +649,7 @@ namespace eka2l1 {
     }
 
     void mmf_dev_server_session::samples_played(service::ipc_context *ctx) {
-        ctx->write_data_to_descriptor_argument<std::uint32_t>(2, stream_->samples_played());
+        ctx->write_data_to_descriptor_argument<std::uint32_t>(2, stream_ ? stream_->samples_played() : 0);
         ctx->complete(epoc::error_none);
     }
 
@@ -664,7 +664,12 @@ namespace eka2l1 {
     }
 
     void mmf_dev_server_session::stop() {
-        stream_->stop();
+        // Clients may stop or close a DevSound that was never initialised (the Music player
+        // does this while probing for a custom interface), so there may be no stream yet.
+        if (stream_) {
+            stream_->stop();
+        }
+
         stream_state_ = epoc::mmf_state_idle;
 
         mmf_dev_server *serv = server<mmf_dev_server>();

@@ -44,4 +44,30 @@ namespace eka2l1 {
         void fetch(service::ipc_context *ctx) override;
         void request_free_memory(service::ipc_context *ctx);
     };
+
+    // Classic OOM monitor (oommonitor.dll), hosted by SysAp on S60 5th edition and Symbian^3.
+    // SysAp is not run, so apps that connect to it unconditionally (Music player calls
+    // User::LeaveIfError(ROomMonitorSession::Connect()) in ConstructL) need a stand-in.
+    enum oom_monitor_opcode {
+        oom_monitor_request_free_memory = 0,
+        oom_monitor_cancel_request_free_memory = 1,
+        oom_monitor_this_app_is_not_exiting = 2,
+        oom_monitor_request_optional_ram = 3,
+        oom_monitor_set_priority_busy = 4,
+        oom_monitor_set_priority_normal = 5,
+        oom_monitor_set_priority_high = 6
+    };
+
+    class oom_monitor_server : public service::typical_server {
+    public:
+        explicit oom_monitor_server(eka2l1::system *sys);
+
+        void connect(service::ipc_context &context) override;
+    };
+
+    struct oom_monitor_session : public service::typical_session {
+        explicit oom_monitor_session(service::typical_server *serv, const kernel::uid ss_id, epoc::version client_version);
+
+        void fetch(service::ipc_context *ctx) override;
+    };
 }

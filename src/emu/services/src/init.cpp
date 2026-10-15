@@ -374,6 +374,7 @@ namespace eka2l1 {
                 CREATE_SERVER(sys, backup_old_server);
             } else {
                 CREATE_SERVER(sys, goom_monitor_server);
+                CREATE_SERVER(sys, oom_monitor_server);
                 CREATE_SERVER(sys, alf_streamer_server);
                 CREATE_SERVER(sys, dm_domain_server);
 

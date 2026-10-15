@@ -59,4 +59,45 @@ namespace eka2l1 {
 
         ctx->complete(epoc::error_none);
     }
+
+    oom_monitor_server::oom_monitor_server(eka2l1::system *sys)
+        : service::typical_server(sys, "OomMonitorServer") {
+    }
+
+    void oom_monitor_server::connect(service::ipc_context &context) {
+        create_session<oom_monitor_session>(&context);
+        context.complete(epoc::error_none);
+    }
+
+    oom_monitor_session::oom_monitor_session(service::typical_server *serv, const kernel::uid ss_id,
+        epoc::version client_version)
+        : service::typical_session(serv, ss_id, client_version) {
+    }
+
+    void oom_monitor_session::fetch(service::ipc_context *ctx) {
+        // Host memory is plentiful: every request for free memory succeeds immediately.
+        switch (ctx->msg->function) {
+        case oom_monitor_request_optional_ram: {
+            // A non-negative result is the number of bytes made available.
+            std::optional<std::int32_t> bytes_requested = ctx->get_argument_value<std::int32_t>(0);
+            ctx->complete(bytes_requested.value_or(0));
+            break;
+        }
+
+        case oom_monitor_request_free_memory:
+        case oom_monitor_cancel_request_free_memory:
+        case oom_monitor_this_app_is_not_exiting:
+        case oom_monitor_set_priority_busy:
+        case oom_monitor_set_priority_normal:
+        case oom_monitor_set_priority_high:
+            ctx->complete(epoc::error_none);
+            break;
+
+        default:
+            LOG_ERROR(SERVICE_GOOMMONITOR, "Unimplemented opcode for OOM Monitor server 0x{:X}", ctx->msg->function);
+            ctx->complete(epoc::error_none);
+            break;
+        }
+    }
 }
+

@@ -1012,6 +1012,38 @@ namespace eka2l1 {
         ctx.complete(ctx.write_data_to_descriptor_argument(1, uid) ? epoc::error_none : epoc::error_argument);
     }
 
+    // What the platform recognizers would report for common media files. Metadata readers pick their
+    // parser from this (the MPX harvester skips a song whose type is not a real MIME type).
+    static const char *mime_type_from_extension(const std::u16string &ext) {
+        static const std::pair<const char16_t *, const char *> EXTENSION_MIME_TYPES[] = {
+            { u".swf", "application/x-shockwave-flash" },
+            { u".mp3", "audio/mpeg" },
+            { u".m4a", "audio/mp4" },
+            { u".aac", "audio/aac" },
+            { u".wav", "audio/wav" },
+            { u".amr", "audio/amr" },
+            { u".awb", "audio/amr-wb" },
+            { u".wma", "audio/x-ms-wma" },
+            { u".mid", "audio/midi" },
+            { u".midi", "audio/midi" },
+            { u".3gp", "video/3gpp" },
+            { u".mp4", "video/mp4" },
+            { u".jpg", "image/jpeg" },
+            { u".jpeg", "image/jpeg" },
+            { u".png", "image/png" },
+            { u".gif", "image/gif" },
+            { u".bmp", "image/bmp" }
+        };
+
+        for (const auto &[known_ext, mime_type] : EXTENSION_MIME_TYPES) {
+            if (common::compare_ignore_case(ext, known_ext) == 0) {
+                return mime_type;
+            }
+        }
+
+        return nullptr;
+    }
+
     void applist_server::get_app_for_document_impl(service::ipc_context &ctx, const std::u16string &path) {
         applist_app_for_document app;
         app.uid = 0;
@@ -1024,8 +1056,9 @@ namespace eka2l1 {
 
             const std::u16string ext = eka2l1::path_extension(path);
             if (!ext.empty()) {
-                if (common::compare_ignore_case(ext, u".swf") == 0) {
-                    app.data_type.data_type.assign(nullptr, "application/x-shockwave-flash");
+                const char *mime_type = mime_type_from_extension(ext);
+                if (mime_type) {
+                    app.data_type.data_type.assign(nullptr, mime_type);
                 } else {
                     app.data_type.data_type.assign(nullptr, common::uppercase_string(common::ucs2_to_utf8(ext.substr(1))));
                 }

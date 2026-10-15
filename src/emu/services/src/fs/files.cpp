@@ -131,6 +131,11 @@ namespace eka2l1 {
         epoc::ref_count_object::deref();
     }
 
+    bool fs_server::is_file_in_use(const std::u16string &path) {
+        auto ite = attribs.find(canonical_file_attrib_path(path));
+        return (ite != attribs.end()) && (ite->second.use_count > 0);
+    }
+
     file *fs_server::get_file(const kernel::uid session_uid, const std::uint32_t handle) {
         auto ss = session<fs_server_client>(session_uid);
 

@@ -455,6 +455,14 @@ namespace eka2l1 {
             return;
         }
 
+        // Symbian refuses to delete a file that still has an open handle. Some clients rely on
+        // that: the MPX harvester wipes "harvesterdbv*.dat" right after creating its new
+        // database and expects the open one to survive.
+        if (server<fs_server>()->is_file_in_use(path)) {
+            ctx->complete(epoc::error_in_use);
+            return;
+        }
+
         io_system *io = ctx->sys->get_io_system();
 
         bool success = io->delete_entry(path);
